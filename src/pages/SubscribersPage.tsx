@@ -798,6 +798,19 @@ function AccountDetails({ row }: { row: Subscriber }): ReactElement {
           }
         />
         <Fact label="Joined" value={date(row.date_joined)} />
+        <Fact
+          label="Terms accepted"
+          value={
+            row.terms?.accepted_at ? (
+              <>
+                {dateTime(row.terms.accepted_at)}
+                <small className="block muted">Version {row.terms.version}</small>
+              </>
+            ) : (
+              <span className="tone-warn">Not recorded (signed up before the terms checkbox)</span>
+            )
+          }
+        />
         <Fact label="Last sign-in" value={row.last_login ? dateTime(row.last_login) : "Never"} />
         <Fact
           label="Team"
@@ -844,6 +857,11 @@ function TeamList({ row }: { row: Subscriber }): ReactElement {
             <small>
               {m.devices} PC{m.devices === 1 ? "" : "s"} · added {date(m.created_at)}
             </small>
+            {m.devices > 0 ? (
+              <small className={m.consent?.at ? "tone-good" : "tone-warn"}>
+                {m.consent?.at ? `Consent given ${date(m.consent.at)}` : "Consent not given yet"}
+              </small>
+            ) : null}
           </span>
           <span className={"pill " + (m.is_active ? "pill--good" : "pill--muted")}>{m.is_active ? "Active" : "Removed"}</span>
         </li>
@@ -1136,6 +1154,9 @@ function PaymentHistory({ payments }: { payments: Payment[] }): ReactElement {
             <td>{inr(p.amount_inr)}</td>
             <td>
               {methodLabel(p.method)} · <span className="mono">{p.reference}</span>
+              {p.terms_accepted_at ? (
+                <small className="block muted">Payment terms accepted {date(p.terms_accepted_at)}</small>
+              ) : null}
             </td>
             <td>{date(p.paid_on)}</td>
             <td className="nowrap">

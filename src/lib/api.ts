@@ -12,7 +12,8 @@ export class ApiError extends Error {
 async function request<T>(path: string, init: RequestInit & { auth?: boolean } = {}): Promise<T> {
   const { auth = true, headers, ...rest } = init;
   const h = new Headers(headers);
-  if (rest.body && !h.has("Content-Type")) h.set("Content-Type", "application/json");
+  // JSON by default; a FormData body (file upload) gets its multipart boundary from the browser.
+  if (rest.body && !(rest.body instanceof FormData) && !h.has("Content-Type")) h.set("Content-Type", "application/json");
   if (auth) {
     const token = getToken();
     if (token) h.set("Authorization", `Token ${token}`);
@@ -87,6 +88,9 @@ export interface Payment {
   covers_until: string | null;
   /** Waiting payments: the period approving it now would cover. */
   would_cover: { from: string; until: string } | null;
+  /** When the customer accepted the payment terms (refund policy) with this payment, and which version. */
+  terms_accepted_at?: string | null;
+  terms_version?: string;
 }
 
 /** A payment in the plan-activation queue, with who sent it. */
@@ -127,6 +131,8 @@ export interface Subscriber {
   emails: { sent: number; last_sent_at: string | null };
   /** Members the owner added on their dashboard, and PCs enrolled on the account. */
   team: { devices: number; members: TeamMember[] };
+  /** When they accepted the Terms, Privacy Policy and Acceptable Use Policy at sign-up. */
+  terms?: { accepted_at: string | null; version: string };
 }
 
 export interface TeamMember {
@@ -138,6 +144,8 @@ export interface TeamMember {
   /** PCs enrolled for this member. */
   devices: number;
   created_at: string;
+  /** Their own consent to monitoring, given on the Zinwe widget (null = not yet). */
+  consent?: { version: string; at: string | null } | null;
 }
 
 /** A custom email the team sent (body is the plain-text version). */
@@ -263,3 +271,92 @@ export async function fetchProof(paymentId: number): Promise<Blob> {
 
 export const getFeedback = () =>
   request<{ summary: FeedbackSummary; rows: FeedbackRow[] }>("/api/admin/feedback/");
+
+// --- Support (customers' dashboard Support chat) ------------------------------
+
+export type SupportStatus = "open" | "answered" | "closed";
+
+export interface SupportMessage {
+  id: number;
+  sender: "owner" | "staff";
+  author_name: string;
+  body: string;
+  created_at: string;
+}
+
+export interface SupportTicketRow {
+  id: number;
+  subject: string;
+  category: "question" | "problem" | "billing" | "setup" | "idea";
+  status: SupportStatus;
+  page: string;
+  created_at: string;
+  updated_at: string;
+  /** Customer messages not opened yet. */
+  unread: number;
+  message_count: number;
+  last_message: { sender: "owner" | "staff"; body: string; created_at: string } | null;
+  customer: { id: number; email: string; full_name: string; company: string };
+}
+
+export interface SupportTicketDetail extends SupportTicketRow {
+  messages: SupportMessage[];
+}
+
+export const getSupportTickets = (status?: SupportStatus) =>
+  request<{ counts: Record<SupportStatus, number>; rows: SupportTicketRow[] }>(
+    `/api/admin/support/${status ? `?status=${status}` : ""}`,
+  );
+/** Opening a ticket marks the customer's messages read. */
+export const getSupportTicket = (id: number) => request<SupportTicketDetail>(`/api/admin/support/${id}/`);
+/** The customer is emailed the reply (and sees it in their dashboard). */
+export const replySupportTicket = (id: number, body: string, close = false) =>
+  post<SupportTicketDetail>(`/api/admin/support/${id}/reply/`, { body, close });
+export const setSupportStatus = (id: number, status: SupportStatus) =>
+  post<SupportTicketDetail>(`/api/admin/support/${id}/status/`, { status });
+
+// --- Windows agent releases (Releases page) -------------------------------------------
+
+export interface AgentRelease {
+  id: number;
+  version: string;
+  notes: string;
+  /** Older PCs pause log in / break / log out until they update. */
+  required: boolean;
+  /** false = withdrawn: no longer offered. */
+  is_active: boolean;
+  hosted: "upload" | "link";
+  download_url: string;
+  sha256: string;
+  size: number | null;
+  published_at: string;
+  published_by: string;
+  /** PCs already on this version or newer, out of all active PCs. */
+  adoption: { updated: number; total: number };
+}
+
+export interface PublishRelease {
+  version: string;
+  notes: string;
+  required: boolean;
+  file?: File | null;
+  download_url?: string;
+  sha256?: string;
+}
+
+export const getReleases = () => request<AgentRelease[]>("/api/admin/releases/");
+
+/** Multipart: the MSI upload (the server computes its SHA-256), or an external link + its SHA-256. */
+export function publishRelease(input: PublishRelease): Promise<AgentRelease> {
+  const form = new FormData();
+  form.set("version", input.version);
+  form.set("notes", input.notes);
+  form.set("required", String(input.required));
+  if (input.file) form.set("file", input.file);
+  if (input.download_url) form.set("download_url", input.download_url);
+  if (input.sha256) form.set("sha256", input.sha256);
+  return request<AgentRelease>("/api/admin/releases/", { method: "POST", body: form });
+}
+
+export const updateRelease = (id: number, patch: Partial<Pick<AgentRelease, "required" | "is_active" | "notes">>) =>
+  request<AgentRelease>(`/api/admin/releases/${id}/`, { method: "PATCH", body: JSON.stringify(patch) });

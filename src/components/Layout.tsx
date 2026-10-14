@@ -7,6 +7,9 @@ const NAV = [
   { to: "/", label: "Dashboard", end: true },
   { to: "/subscribers", label: "Subscribers" },
   { to: "/feedback", label: "Feedback" },
+  { to: "/support", label: "Support" },
+  { to: "/releases", label: "Releases" },
+  { to: "/blog", label: "Blog" },
 ];
 
 export function Layout({

@@ -9,6 +9,11 @@ import { LoginPage } from "./pages/LoginPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { FeedbackPage } from "./pages/FeedbackPage";
 import { SubscribersPage } from "./pages/SubscribersPage";
+import { SupportPage } from "./pages/SupportPage";
+import { ReleasesPage } from "./pages/ReleasesPage";
+import { BlogPage } from "./pages/BlogPage";
+import { BlogEditorPage } from "./pages/BlogEditorPage";
+import { BlogSubscribersPage } from "./pages/BlogSubscribersPage";
 
 type AuthState =
   | { kind: "loading" }
@@ -60,6 +65,11 @@ export function App(): ReactElement {
             <Route path="/activations" element={<Navigate to="/subscribers?status=waiting" replace />} />
             <Route path="/subscribers" element={<SubscribersPage />} />
             <Route path="/feedback" element={<FeedbackPage />} />
+            <Route path="/support" element={<SupportPage />} />
+            <Route path="/releases" element={<ReleasesPage />} />
+            <Route path="/blog" element={<BlogPage />} />
+            <Route path="/blog/subscribers" element={<BlogSubscribersPage />} />
+            <Route path="/blog/:id" element={<BlogEditorPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </PageErrorBoundary>
