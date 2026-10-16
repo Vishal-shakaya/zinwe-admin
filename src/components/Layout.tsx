@@ -6,8 +6,10 @@ import { BrandLogo } from "./BrandLogo";
 const NAV = [
   { to: "/", label: "Dashboard", end: true },
   { to: "/subscribers", label: "Subscribers" },
+  { to: "/subscriptions", label: "Subscriptions" },
   { to: "/feedback", label: "Feedback" },
   { to: "/support", label: "Support" },
+  { to: "/announcements", label: "Announcements" },
   { to: "/releases", label: "Releases" },
   { to: "/blog", label: "Blog" },
 ];

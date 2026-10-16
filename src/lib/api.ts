@@ -360,3 +360,125 @@ export function publishRelease(input: PublishRelease): Promise<AgentRelease> {
 
 export const updateRelease = (id: number, patch: Partial<Pick<AgentRelease, "required" | "is_active" | "notes">>) =>
   request<AgentRelease>(`/api/admin/releases/${id}/`, { method: "PATCH", body: JSON.stringify(patch) });
+
+// --- Announcements (notification bars on the customer dashboard and the website) -------------
+
+export type AnnouncementKind = "offer" | "discount" | "news" | "version" | "maintenance";
+export type AnnouncementPlacement = "dashboard" | "website" | "both";
+export type AnnouncementAudience = "everyone" | "free" | "paid" | "plans";
+/** live = showing now · scheduled = starts later · ended = past its end · off = switched off. */
+export type AnnouncementStatus = "live" | "scheduled" | "ended" | "off";
+
+export interface Announcement {
+  id: number;
+  title: string;
+  body: string;
+  kind: AnnouncementKind;
+  placement: AnnouncementPlacement;
+  audience: AnnouncementAudience;
+  plan_codes: string[];
+  cta_label: string;
+  cta_href: string;
+  starts_at: string;
+  ends_at: string | null;
+  is_active: boolean;
+  dismissible: boolean;
+  priority: number;
+  status: AnnouncementStatus;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export type AnnouncementInput = Omit<Announcement, "id" | "status" | "created_by" | "created_at" | "updated_at">;
+
+export const getAnnouncements = () => request<Announcement[]>("/api/admin/announcements/");
+
+export const createAnnouncement = (input: AnnouncementInput) =>
+  request<Announcement>("/api/admin/announcements/", { method: "POST", body: JSON.stringify(input) });
+
+export const updateAnnouncement = (id: number, patch: Partial<AnnouncementInput>) =>
+  request<Announcement>(`/api/admin/announcements/${id}/`, { method: "PATCH", body: JSON.stringify(patch) });
+
+export const deleteAnnouncement = (id: number) =>
+  request<null>(`/api/admin/announcements/${id}/`, { method: "DELETE" });
+
+// --- Subscriptions (billing by country: currency, tax, payment link, invoices) ----------------
+
+export interface AmountDue {
+  plan_name: string;
+  currency: "INR" | "USD";
+  billing_cycle: "monthly" | "yearly";
+  months: number;
+  list_amount: string;
+  discount_amount: string;
+  amount: string;
+  taxes: Array<{ label: string; rate: string; amount: string }>;
+  tax_total: string;
+  total: string;
+  region: "IN" | "INTL";
+  place_of_supply: string;
+  export: boolean;
+}
+
+export interface AdminSubscription {
+  id: number;
+  owner: { id: number; email: string; name: string };
+  company: { name: string; country: string; state: string; gstin: string } | null;
+  region: "IN" | "INTL";
+  plan: { code: string; name: string };
+  status: "pending_payment" | "active" | "expired" | "cancelled";
+  currency: "INR" | "USD";
+  billing_cycle: "monthly" | "yearly";
+  /** Plan price for one cycle, before tax, in `currency`. */
+  amount_inr: string;
+  /** The next payment with tax — what to put on a Skydo payment link. Null for free plans. */
+  amount_due: AmountDue | null;
+  is_trial: boolean;
+  starts_at: string | null;
+  ends_at: string | null;
+  days_left: number | null;
+  payment_link: string;
+  latest_payment: {
+    id: number;
+    status: "submitted" | "verified" | "rejected";
+    method: string;
+    amount: string;
+    currency: string;
+    submitted_at: string;
+  } | null;
+  invoices: Array<{ payment_id: number; number: string; issued_at: string; total: string; currency: string }>;
+  created_at: string;
+}
+
+export const getSubscriptions = () => request<AdminSubscription[]>("/api/admin/subscriptions/");
+
+export const setPaymentLink = (id: number, paymentLink: string) =>
+  request<AdminSubscription>(`/api/admin/subscriptions/${id}/`, {
+    method: "PATCH",
+    body: JSON.stringify({ payment_link: paymentLink }),
+  });
+
+/** Download a confirmed payment's invoice PDF with the staff token. */
+export async function downloadInvoicePdf(paymentId: number, number: string): Promise<void> {
+  const token = getToken();
+  const res = await fetch(`/api/admin/payments/${paymentId}/invoice/pdf/`, {
+    headers: token ? { Authorization: `Token ${token}` } : {},
+  });
+  if (res.status === 401) {
+    clearToken();
+    throw new ApiError("Your session has ended. Please sign in again.", 401);
+  }
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    throw new ApiError((data && data.detail) || `Couldn't download the invoice (${res.status}).`, res.status);
+  }
+  const url = URL.createObjectURL(await res.blob());
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `Zinwe-invoice-${number.replace(/\//g, "-")}.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 10_000);
+}

@@ -74,3 +74,12 @@ export function dateTime(iso: string | null): string {
   if (Number.isNaN(d.getTime())) return "—";
   return d.toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" });
 }
+
+/** "1145.78" + INR -> "₹1,145.78"; "144.00" + USD -> "$144.00". */
+export function money(amount: string | number, currency: string = "INR"): string {
+  const n = typeof amount === "string" ? Number(amount) : amount;
+  if (!Number.isFinite(n)) return String(amount);
+  return currency === "USD"
+    ? n.toLocaleString("en-US", { style: "currency", currency: "USD" })
+    : "₹" + n.toLocaleString("en-IN", { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 });
+}

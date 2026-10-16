@@ -252,14 +252,14 @@ export const EMAIL_TEMPLATES: EmailTemplate[] = [
     id: "upgrade",
     group: "Plan & renewal",
     label: "Upgrade suggestion",
-    when: "They're growing or asked about more PCs or compliance records.",
+    when: "They're growing or asked about more PCs or more protection.",
     build: (c) => ({
-      subject: `More PCs and compliance records for ${c.plain.company}`,
+      subject: `More PCs and protection for ${c.plain.company}`,
       html:
         p(`Hi ${c.firstName},`, `As ${c.company} grows, here's what each plan covers:`) +
         ul(
-          `<strong>Startups</strong>: up to 10 PCs, every monitoring module (USB, remote access, software installs, LAN, email), ₹999 a month.`,
-          `<strong>Businesses</strong>: up to 50 PCs, DPDP-ready consent and activity logs, and priority support, ₹2,999 a month.`,
+          `<strong>Startups</strong>: up to 10 PCs, full protection (USB drives, files leaving by network, Outlook or upload, remote-access tools, software installs, website blocking), ₹971 a month (28% off ₹1,349).`,
+          `<strong>Businesses</strong>: up to 50 PCs, everything in Startups plus work hours, app usage, team chat and priority support, ₹2,834 a month (30% off ₹4,049).`,
         ) +
         p(`You're on <strong>${c.planName}</strong> today. Compare and switch on ${a(c.links.plans, "the plans page")}, or reply and we'll recommend the right one.`),
     }),

@@ -11,6 +11,8 @@ import { FeedbackPage } from "./pages/FeedbackPage";
 import { SubscribersPage } from "./pages/SubscribersPage";
 import { SupportPage } from "./pages/SupportPage";
 import { ReleasesPage } from "./pages/ReleasesPage";
+import { AnnouncementsPage } from "./pages/AnnouncementsPage";
+import { SubscriptionsPage } from "./pages/SubscriptionsPage";
 import { BlogPage } from "./pages/BlogPage";
 import { BlogEditorPage } from "./pages/BlogEditorPage";
 import { BlogSubscribersPage } from "./pages/BlogSubscribersPage";
@@ -64,9 +66,11 @@ export function App(): ReactElement {
             {/* Plan activation now lives in Subscribers (Waiting filter); keep old links working. */}
             <Route path="/activations" element={<Navigate to="/subscribers?status=waiting" replace />} />
             <Route path="/subscribers" element={<SubscribersPage />} />
+            <Route path="/subscriptions" element={<SubscriptionsPage />} />
             <Route path="/feedback" element={<FeedbackPage />} />
             <Route path="/support" element={<SupportPage />} />
             <Route path="/releases" element={<ReleasesPage />} />
+            <Route path="/announcements" element={<AnnouncementsPage />} />
             <Route path="/blog" element={<BlogPage />} />
             <Route path="/blog/subscribers" element={<BlogSubscribersPage />} />
             <Route path="/blog/:id" element={<BlogEditorPage />} />
