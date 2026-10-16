@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactElement } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState, type ReactElement } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { getMe, type AdminMe } from "./lib/api";
 import { clearToken, getToken } from "./lib/session";
@@ -16,6 +16,10 @@ import { SubscriptionsPage } from "./pages/SubscriptionsPage";
 import { BlogPage } from "./pages/BlogPage";
 import { BlogEditorPage } from "./pages/BlogEditorPage";
 import { BlogSubscribersPage } from "./pages/BlogSubscribersPage";
+
+// Documentation tab: local dev only. `import.meta.env.DEV` is false in `vite build`, so production bundles drop
+// this import (and the docs are served only by the dev server, see vite.config.ts).
+const DocsPage = import.meta.env.DEV ? lazy(() => import("./pages/DocsPage")) : null;
 
 type AuthState =
   | { kind: "loading" }
@@ -74,6 +78,16 @@ export function App(): ReactElement {
             <Route path="/blog" element={<BlogPage />} />
             <Route path="/blog/subscribers" element={<BlogSubscribersPage />} />
             <Route path="/blog/:id" element={<BlogEditorPage />} />
+            {DocsPage ? (
+              <Route
+                path="/docs/:slug?"
+                element={
+                  <Suspense fallback={<p className="muted">Loading…</p>}>
+                    <DocsPage />
+                  </Suspense>
+                }
+              />
+            ) : null}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </PageErrorBoundary>

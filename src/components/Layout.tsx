@@ -12,6 +12,8 @@ const NAV = [
   { to: "/announcements", label: "Announcements" },
   { to: "/releases", label: "Releases" },
   { to: "/blog", label: "Blog" },
+  // Project documentation: only when the admin runs locally (`npm run dev`), never in dev/prod builds.
+  ...(import.meta.env.DEV ? [{ to: "/docs", label: "Documentation" }] : []),
 ];
 
 export function Layout({
