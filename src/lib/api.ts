@@ -326,7 +326,8 @@ export const getFeedback = () =>
   request<{ summary: FeedbackSummary; rows: FeedbackRow[] }>("/api/admin/feedback/");
 
 /** What needs the team now, for the sidebar badges. */
-export const getBadges = () => request<{ payments_waiting: number; support_waiting: number }>("/api/admin/badges/");
+export const getBadges = () =>
+  request<{ payments_waiting: number; support_waiting: number; forms_new?: number }>("/api/admin/badges/");
 
 /** Whether GST is charged right now (the seller GSTIN is set). */
 export const getBillingSettings = () => request<{ gst_charged: boolean; seller_gstin: string }>("/api/admin/billing-settings/");
@@ -373,6 +374,51 @@ export const replySupportTicket = (id: number, body: string, close = false) =>
   post<SupportTicketDetail>(`/api/admin/support/${id}/reply/`, { body, close });
 export const setSupportStatus = (id: number, status: SupportStatus) =>
   post<SupportTicketDetail>(`/api/admin/support/${id}/status/`, { status });
+
+// --- Website forms (Forms page): contact, setup call, and any form added later --------------
+
+export type FormStatus = "new" | "handled";
+
+/** One form type = one tab. New form types appear on their own (the backend lists every kind it has). */
+export interface FormKind {
+  kind: string;
+  label: string;
+  total: number;
+  new: number;
+}
+
+export interface FormSubmission {
+  id: number;
+  kind: string;
+  kind_label: string;
+  name: string;
+  email: string;
+  company: string;
+  phone: string;
+  subject: string;
+  message: string;
+  /** Fields only this form has (team size, platforms, ...): shown as label/value pairs. */
+  details: Record<string, unknown>;
+  status: FormStatus;
+  note: string;
+  handled_by: string;
+  handled_at: string | null;
+  created_at: string;
+}
+
+export const getForms = (filters: { kind?: string; status?: FormStatus; q?: string }) => {
+  const qs = new URLSearchParams();
+  if (filters.kind) qs.set("kind", filters.kind);
+  if (filters.status) qs.set("status", filters.status);
+  if (filters.q) qs.set("q", filters.q);
+  const query = qs.toString();
+  return request<{ kinds: FormKind[]; counts: Record<FormStatus, number>; rows: FormSubmission[] }>(
+    `/api/admin/forms/${query ? `?${query}` : ""}`,
+  );
+};
+export const getForm = (id: number) => request<FormSubmission>(`/api/admin/forms/${id}/`);
+export const updateForm = (id: number, patch: { status?: FormStatus; note?: string }) =>
+  request<FormSubmission>(`/api/admin/forms/${id}/`, { method: "PATCH", body: JSON.stringify(patch) });
 
 // --- Windows agent releases (Releases page) -------------------------------------------
 

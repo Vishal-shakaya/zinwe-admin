@@ -10,6 +10,7 @@ import { DashboardPage } from "./pages/DashboardPage";
 import { FeedbackPage } from "./pages/FeedbackPage";
 import { SubscribersPage } from "./pages/SubscribersPage";
 import { SupportPage } from "./pages/SupportPage";
+import { FormsPage } from "./pages/FormsPage";
 import { ReleasesPage } from "./pages/ReleasesPage";
 import { AnnouncementsPage } from "./pages/AnnouncementsPage";
 import { SubscriptionsPage } from "./pages/SubscriptionsPage";
@@ -73,6 +74,7 @@ export function App(): ReactElement {
             <Route path="/subscriptions" element={<SubscriptionsPage />} />
             <Route path="/feedback" element={<FeedbackPage />} />
             <Route path="/support" element={<SupportPage />} />
+            <Route path="/forms" element={<FormsPage />} />
             <Route path="/releases" element={<ReleasesPage />} />
             <Route path="/announcements" element={<AnnouncementsPage />} />
             <Route path="/blog" element={<BlogPage />} />

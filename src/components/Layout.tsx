@@ -4,7 +4,7 @@ import { getBadges, type AdminMe } from "../lib/api";
 import { BADGES_EVENT } from "../lib/badges";
 import { BrandLogo } from "./BrandLogo";
 
-type BadgeKey = "payments_waiting" | "support_waiting";
+type BadgeKey = "payments_waiting" | "support_waiting" | "forms_new";
 
 interface NavItem {
   to: string;
@@ -21,6 +21,7 @@ const NAV: NavItem[] = [
   { to: "/subscriptions", label: "Subscriptions" },
   { to: "/feedback", label: "Feedback" },
   { to: "/support", label: "Support", badge: "support_waiting", badgeLabel: "waiting for an answer" },
+  { to: "/forms", label: "Forms", badge: "forms_new", badgeLabel: "new form submissions" },
   { to: "/announcements", label: "Announcements" },
   { to: "/releases", label: "Releases" },
   { to: "/blog", label: "Blog" },
