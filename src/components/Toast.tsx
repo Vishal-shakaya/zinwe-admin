@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useState, type ReactElement, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useState, type ReactElement, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 type Tone = "good" | "bad";
@@ -28,6 +28,21 @@ function toastHost(): Element {
 
 export function ToastProvider({ children }: { children: ReactNode }): ReactElement {
   const [items, setItems] = useState<ToastItem[]>([]);
+  // The host is picked at render time; when the dialog it sat in closes (a confirmation that just
+  // succeeded), render again so the toast moves to the page instead of vanishing with the dialog.
+  const [, setHostVersion] = useState(0);
+  const showing = items.length > 0;
+  useEffect(() => {
+    if (!showing) return;
+    const bump = () => setHostVersion((v) => v + 1);
+    const observer = new MutationObserver(bump);
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["open"] });
+    const frame = window.requestAnimationFrame(bump);
+    return () => {
+      observer.disconnect();
+      window.cancelAnimationFrame(frame);
+    };
+  }, [showing]);
 
   const show = useCallback((text: string, tone: Tone = "good") => {
     const id = nextId++;

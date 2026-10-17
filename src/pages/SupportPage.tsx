@@ -1,31 +1,91 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactElement } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   ApiError,
+  getSubscriber,
   getSupportTicket,
   getSupportTickets,
+  isBlocked,
   replySupportTicket,
   setSupportStatus,
+  type Subscriber,
   type SupportStatus,
   type SupportTicketDetail,
   type SupportTicketRow,
 } from "../lib/api";
-import { dateTime, relativeDay } from "../lib/format";
+import { refreshBadges } from "../lib/badges";
+import { date, dateTime, money, paymentTone, relativeDay } from "../lib/format";
+import { pageName } from "../lib/pages";
 import { useLoad } from "../lib/useLoad";
 import { PageHeader } from "../components/PageHeader";
 import { useToast } from "../components/Toast";
 
+/** The customer behind a conversation (plan, payment), loaded once per ticket; null while loading or if it fails. */
+function useCustomer(id: number | null): Subscriber | null | "error" {
+  const [row, setRow] = useState<Subscriber | null | "error">(null);
+  useEffect(() => {
+    if (id === null) return;
+    let alive = true;
+    getSubscriber(id)
+      .then((r) => {
+        if (alive) setRow(r);
+      })
+      .catch(() => {
+        if (alive) setRow("error");
+      });
+    return () => {
+      alive = false;
+    };
+  }, [id]);
+  return row;
+}
+
+const PAY_WORD: Record<string, string> = { submitted: "Payment waiting", verified: "Paid", rejected: "Payment rejected" };
+
+/** J8-10: plan + payment at a glance, and a way to the customer, so billing questions need no search. */
+function CustomerContext({ customer, customerId }: { customer: Subscriber | null | "error"; customerId: number }): ReactElement {
+  const link = (
+    <Link className="btn btn--ghost btn--sm" to={`/subscribers?open=${customerId}`}>
+      Open customer
+    </Link>
+  );
+  if (customer === "error") return <div className="sup-ctx">{link}</div>;
+  if (customer === null) return <div className="sup-ctx muted">Loading the customer…</div>;
+  const pay = customer.payment ?? customer.payments[0] ?? null;
+  const sub = customer.subscription;
+  return (
+    <div className="sup-ctx">
+      {isBlocked(customer) ? <span className="pill pill--bad">Blocked</span> : null}
+      <span className="sup-ctx__plan">
+        <b>{customer.plan?.name ?? "No plan"}</b>
+        {sub?.status === "active" && sub.ends_at ? ` · until ${date(sub.ends_at)}` : ""}
+        {sub?.status === "pending_payment" ? " · not active yet" : ""}
+        {sub?.status === "expired" ? " · ended" : ""}
+      </span>
+      {pay ? (
+        <span className={`pill pill--${paymentTone(pay.status)}`}>
+          {PAY_WORD[pay.status] ?? pay.status} · {money(pay.due_total ?? pay.amount_inr, pay.currency ?? "INR")} ·{" "}
+          {pay.plan.name}
+        </span>
+      ) : (
+        <span className="pill pill--muted">No payments</span>
+      )}
+      {link}
+    </div>
+  );
+}
+
 const FILTERS: { key: SupportStatus | "all"; label: string }[] = [
   { key: "open", label: "Waiting for us" },
   { key: "answered", label: "Answered" },
-  { key: "closed", label: "Closed" },
+  { key: "closed", label: "Resolved" },
   { key: "all", label: "All" },
 ];
 
 const STATUS: Record<SupportStatus, { label: string; tone: string }> = {
   open: { label: "Waiting for us", tone: "warn" },
   answered: { label: "Answered", tone: "good" },
-  closed: { label: "Closed", tone: "muted" },
+  closed: { label: "Resolved", tone: "muted" },
 };
 
 const CATEGORY: Record<SupportTicketRow["category"], string> = {
@@ -75,7 +135,7 @@ export function SupportPage(): ReactElement {
             <span className="stat__value tone-good">{data.counts.answered}</span>
           </div>
           <div className="stat">
-            <span className="stat__label">Closed</span>
+            <span className="stat__label">Resolved</span>
             <span className="stat__value">{data.counts.closed}</span>
           </div>
         </div>
@@ -124,7 +184,11 @@ export function SupportPage(): ReactElement {
                     {t.unread > 0 ? <span className="sup-dot" aria-label={`${t.unread} unread`}>{t.unread}</span> : null}
                   </span>
                   <span className="sup-row__who">
-                    {t.customer.company || t.customer.full_name || t.customer.email}
+                    {t.customer.company ? <b>{t.customer.company}</b> : null}
+                    <span className="sup-row__person">
+                      {t.customer.full_name ? `${t.customer.full_name} · ` : ""}
+                      {t.customer.email}
+                    </span>
                   </span>
                   <span className="sup-row__meta">
                     <span className={`pill pill--${STATUS[t.status].tone}`}>{STATUS[t.status].label}</span>
@@ -164,15 +228,27 @@ function TicketPane({ id, onChanged, onClose }: { id: number; onChanged: () => v
   const { data, error, setData } = useLoad(load);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
+  const pane = useRef<HTMLElement>(null);
+  const customerId = data?.customer.id ?? null;
+  const customer = useCustomer(customerId);
 
-  const send = async (close: boolean) => {
+  // On a phone the conversation opens below the list: bring it into view (J8-08).
+  const loaded = data !== undefined;
+  useEffect(() => {
+    if (loaded && window.matchMedia("(max-width: 900px)").matches) {
+      pane.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [loaded]);
+
+  const send = async (resolve: boolean) => {
     if (!text.trim()) return;
     setBusy(true);
     try {
-      setData(await replySupportTicket(id, text.trim(), close));
+      setData(await replySupportTicket(id, text.trim(), resolve));
       setText("");
-      toast(close ? "Reply sent and conversation closed." : "Reply sent. The customer was emailed.");
+      toast(resolve ? "Reply sent and marked resolved. The customer was emailed." : "Reply sent. The customer was emailed.");
       onChanged();
+      refreshBadges();
     } catch (err) {
       toast(err instanceof ApiError ? err.message : "Couldn't send the reply.", "bad");
     } finally {
@@ -184,7 +260,9 @@ function TicketPane({ id, onChanged, onClose }: { id: number; onChanged: () => v
     setBusy(true);
     try {
       setData(await setSupportStatus(id, status));
+      toast(status === "closed" ? "Marked resolved." : "Reopened: it's waiting for us again.");
       onChanged();
+      refreshBadges();
     } catch (err) {
       toast(err instanceof ApiError ? err.message : "Couldn't update it.", "bad");
     } finally {
@@ -197,9 +275,12 @@ function TicketPane({ id, onChanged, onClose }: { id: number; onChanged: () => v
   const t: SupportTicketDetail = data;
 
   return (
-    <section className="card sup-pane" aria-label={`Conversation: ${t.subject}`}>
+    <section ref={pane} className="card sup-pane" aria-label={`Conversation: ${t.subject}`}>
       <header className="sup-pane__head">
-        <div>
+        <div className="sup-pane__who">
+          <button type="button" className="link-btn sup-pane__back" onClick={onClose}>
+            ← All conversations
+          </button>
           <h2 className="card__title">{t.subject}</h2>
           <p className="muted">
             {t.customer.full_name || t.customer.email} · <a href={`mailto:${t.customer.email}`}>{t.customer.email}</a>
@@ -207,8 +288,9 @@ function TicketPane({ id, onChanged, onClose }: { id: number; onChanged: () => v
           </p>
           <p className="muted">
             {CATEGORY[t.category]} · opened {dateTime(t.created_at)}
-            {t.page ? ` · from ${t.page}` : ""}
+            {t.page ? ` · from ${pageName(t.page)}` : ""}
           </p>
+          <CustomerContext customer={customer} customerId={t.customer.id} />
         </div>
         <div className="sup-pane__actions">
           <span className={`pill pill--${STATUS[t.status].tone}`}>{STATUS[t.status].label}</span>
@@ -218,12 +300,9 @@ function TicketPane({ id, onChanged, onClose }: { id: number; onChanged: () => v
             </button>
           ) : (
             <button type="button" className="btn btn--ghost" onClick={() => void changeStatus("closed")} disabled={busy}>
-              Close
+              Mark resolved
             </button>
           )}
-          <button type="button" className="btn btn--ghost" onClick={onClose} aria-label="Close this conversation view">
-            ✕
-          </button>
         </div>
       </header>
 
@@ -253,8 +332,9 @@ function TicketPane({ id, onChanged, onClose }: { id: number; onChanged: () => v
           onChange={(e) => setText(e.target.value)}
         />
         <div className="sup-reply__actions">
+          <small className="muted sup-reply__hint">“Resolve” moves it to Resolved; the customer can still write again.</small>
           <button type="button" className="btn btn--ghost" onClick={() => void send(true)} disabled={busy || !text.trim()}>
-            Send & close
+            Send &amp; resolve
           </button>
           <button type="submit" className="btn btn--primary" disabled={busy || !text.trim()}>
             {busy ? "Sending…" : "Send reply"}

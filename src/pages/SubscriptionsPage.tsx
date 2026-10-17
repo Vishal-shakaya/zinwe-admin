@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState, type ReactElement } from "react";
 import { Link } from "react-router-dom";
-import { downloadInvoicePdf, getSubscriptions, setPaymentLink, type AdminSubscription } from "../lib/api";
+import { downloadInvoicePdf, getBillingSettings, getSubscriptions, setPaymentLink, type AdminSubscription } from "../lib/api";
 import { date, money } from "../lib/format";
 import { useLoad } from "../lib/useLoad";
 import { Modal } from "../components/Modal";
@@ -35,6 +35,11 @@ function renewalDue(s: AdminSubscription): boolean {
 export function SubscriptionsPage(): ReactElement {
   const load = useCallback(() => getSubscriptions(), []);
   const { data, error, pending, reload } = useLoad(load);
+  const loadSettings = useCallback(() => getBillingSettings(), []);
+  const settings = useLoad(loadSettings);
+  // GST wording from the real setting (J8-13): charged only once the seller GSTIN is set.
+  const gst = settings.data?.gst_charged;
+  const indiaTax = gst === undefined ? "" : gst ? " + GST" : ", no GST yet";
   const toast = useToast();
   const [region, setRegion] = useState<RegionFilter>("all");
   const [status, setStatus] = useState<StatusFilter>("all");
@@ -73,14 +78,20 @@ export function SubscriptionsPage(): ReactElement {
     <>
       <PageHeader
         title="Subscriptions"
-        subtitle="Who pays what, in which currency, with tax. India: INR monthly + GST. Outside India: USD yearly (export, no GST)."
+        subtitle={
+          gst === undefined
+            ? "Who pays what, in which currency, with tax."
+            : gst
+              ? "Who pays what, in which currency, with tax. India: INR monthly + 18% GST. Outside India: USD yearly (export, no GST)."
+              : "Who pays what, in which currency. GST isn't charged yet (no seller GSTIN set), so Indian customers pay the plan price only. Outside India: USD yearly (export)."
+        }
         onReload={reload}
         pending={pending}
       />
 
       <div className="stats">
         <div className="stat">
-          <span className="stat__label">India (INR, monthly + GST)</span>
+          <span className="stat__label">India (INR, monthly{indiaTax})</span>
           <span className="stat__value">{counts.india}</span>
         </div>
         <div className="stat">

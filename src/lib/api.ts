@@ -3,9 +3,12 @@ import { clearToken, getToken } from "./session";
 
 export class ApiError extends Error {
   status: number;
-  constructor(message: string, status: number) {
+  /** Field-level messages from a 400 ({"cta_href": ["…"]}), so forms can show them at the field. */
+  fields: Record<string, string>;
+  constructor(message: string, status: number, fields: Record<string, string> = {}) {
     super(message);
     this.status = status;
+    this.fields = fields;
   }
 }
 
@@ -28,9 +31,21 @@ async function request<T>(path: string, init: RequestInit & { auth?: boolean } =
   if (!res.ok) {
     const detail =
       (data && (data.detail || firstFieldError(data))) || `Something went wrong (${res.status}).`;
-    throw new ApiError(detail, res.status);
+    throw new ApiError(detail, res.status, fieldErrors(data));
   }
   return data as T;
+}
+
+function fieldErrors(data: unknown): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (data && typeof data === "object") {
+    for (const [key, value] of Object.entries(data as Record<string, unknown>)) {
+      if (key === "detail") continue;
+      if (Array.isArray(value) && typeof value[0] === "string") out[key] = value[0];
+      else if (typeof value === "string") out[key] = value;
+    }
+  }
+  return out;
 }
 
 function firstFieldError(data: unknown): string | null {
@@ -91,6 +106,31 @@ export interface Payment {
   /** When the customer accepted the payment terms (refund policy) with this payment, and which version. */
   terms_accepted_at?: string | null;
   terms_version?: string;
+  /** An upgrade payment: the plan it moves up from. */
+  upgrade_from?: string | null;
+  /** INR or USD. */
+  currency?: string;
+  /** What was due when they paid, with tax (the frozen quote): compare the receipt with this. Null on old payments. */
+  due_total?: string | null;
+  /** What staff read off the receipt when approving, and who did (J8-01). */
+  staff_reference?: string;
+  staff_amount?: string | null;
+  staff_checked_by?: string | null;
+  /** Another payment with the same receipt file or the same UTR / reference (J8-03). */
+  duplicate_of?: DuplicatePayment | null;
+  /** The tax invoice of an approved payment. */
+  invoice_number?: string | null;
+}
+
+export interface DuplicatePayment {
+  id: number;
+  status: PaymentStatus;
+  /** "receipt" = the very same file; "reference" = the same UTR / reference. */
+  match: "receipt" | "reference";
+  same_customer: boolean;
+  customer_email: string;
+  submitted_at: string;
+  rejection_reason: string;
 }
 
 /** A payment in the plan-activation queue, with who sent it. */
@@ -127,13 +167,18 @@ export interface Subscriber {
   payments: Payment[];
   /** The team's internal note (never shown to the customer). */
   remark: { text: string; updated_at: string; updated_by: string | null } | null;
-  /** Custom emails the team sent this customer. */
-  emails: { sent: number; last_sent_at: string | null };
+  /** Custom emails the team sent this customer (`sent`), and every email Zinwe sent them (`total`). */
+  emails: { sent: number; last_sent_at: string | null; total?: number };
   /** Members the owner added on their dashboard, and PCs enrolled on the account. */
   team: { devices: number; members: TeamMember[] };
   /** When they accepted the Terms, Privacy Policy and Acceptable Use Policy at sign-up. */
   terms?: { accepted_at: string | null; version: string };
+  /** While blocked: who blocked it, when, why, and whether the customer was emailed. */
+  blocked?: { at: string; by: string | null; reason: string; emailed: boolean } | null;
 }
+
+/** Blocked by the team (verified account switched off), as opposed to a sign-up that was never finished. */
+export const isBlocked = (row: Pick<Subscriber, "is_active" | "email_verified">) => !row.is_active && row.email_verified;
 
 export interface TeamMember {
   id: number;
@@ -185,6 +230,8 @@ export interface Metrics {
     trials: number;
     paying: number;
     pending_payments: number;
+    /** Support conversations waiting for our answer (older backends don't send it). */
+    support_waiting?: number;
     revenue_inr: string;
     feedback: { count: number; average: number | null };
   };
@@ -232,13 +279,18 @@ const post = <T>(path: string, body?: unknown) =>
 /** A POST that returns a customer row: normalised like the list, so a missing field can't crash the page. */
 const postSubscriber = async (path: string, body?: unknown) => withSubscriberDefaults(await post<Subscriber>(path, body));
 
-export const blockSubscriber = (id: number) => postSubscriber(`/api/admin/subscribers/${id}/block/`);
+/** A reason is required; `emailCustomer` sends them the "account paused" email with it. */
+export const blockSubscriber = (id: number, reason: string, emailCustomer: boolean) =>
+  postSubscriber(`/api/admin/subscribers/${id}/block/`, { reason, email_customer: emailCustomer });
 export const unblockSubscriber = (id: number) => postSubscriber(`/api/admin/subscribers/${id}/unblock/`);
-export const changePlan = (id: number, plan: string) =>
-  postSubscriber(`/api/admin/subscribers/${id}/change-plan/`, { plan });
-/** Passwords are stored hashed and can't be read back; staff can only set a new one. */
-export const setPassword = (id: number, password: string) =>
-  postSubscriber(`/api/admin/subscribers/${id}/set-password/`, { password });
+export const changePlan = (id: number, plan: string, emailCustomer = false) =>
+  postSubscriber(`/api/admin/subscribers/${id}/change-plan/`, { plan, email_customer: emailCustomer });
+/** Passwords are stored hashed and can't be read back; staff can only set a new one. The customer is emailed. */
+export const setPassword = (id: number, password: string, emailCustomer = true) =>
+  postSubscriber(`/api/admin/subscribers/${id}/set-password/`, { password, email_customer: emailCustomer });
+/** The safe default: email them a code to choose a new password themselves (the website's Forgot password flow). */
+export const sendPasswordReset = (id: number) =>
+  post<{ sent: boolean; email: string }>(`/api/admin/subscribers/${id}/send-password-reset/`);
 export const deleteSubscriber = (id: number) =>
   request<null>(`/api/admin/subscribers/${id}/`, { method: "DELETE" });
 /** Empty text clears the remark. */
@@ -250,8 +302,9 @@ export const sendCustomerEmail = (id: number, subject: string, html: string) =>
   post<SentEmail>(`/api/admin/subscribers/${id}/emails/`, { subject, html });
 
 // Plan activation: a paid plan turns on only when its payment is approved (by payment id).
-export const approvePayment = (paymentId: number) =>
-  post<QueuedPayment>(`/api/admin/payments/${paymentId}/approve/`);
+/** `reference` and `amount` are what staff read off the receipt; both are required and saved. */
+export const approvePayment = (paymentId: number, reference: string, amount: string) =>
+  post<QueuedPayment>(`/api/admin/payments/${paymentId}/approve/`, { reference, amount });
 export const rejectPayment = (paymentId: number, reason: string) =>
   post<QueuedPayment>(`/api/admin/payments/${paymentId}/reject/`, { reason });
 
@@ -271,6 +324,12 @@ export async function fetchProof(paymentId: number): Promise<Blob> {
 
 export const getFeedback = () =>
   request<{ summary: FeedbackSummary; rows: FeedbackRow[] }>("/api/admin/feedback/");
+
+/** What needs the team now, for the sidebar badges. */
+export const getBadges = () => request<{ payments_waiting: number; support_waiting: number }>("/api/admin/badges/");
+
+/** Whether GST is charged right now (the seller GSTIN is set). */
+export const getBillingSettings = () => request<{ gst_charged: boolean; seller_gstin: string }>("/api/admin/billing-settings/");
 
 // --- Support (customers' dashboard Support chat) ------------------------------
 
@@ -361,6 +420,10 @@ export function publishRelease(input: PublishRelease): Promise<AgentRelease> {
 export const updateRelease = (id: number, patch: Partial<Pick<AgentRelease, "required" | "is_active" | "notes">>) =>
   request<AgentRelease>(`/api/admin/releases/${id}/`, { method: "PATCH", body: JSON.stringify(patch) });
 
+/** PCs that would be offered `version` (connected PCs on an older one), out of all connected PCs. */
+export const getReleaseReach = (version: string) =>
+  request<{ older: number; total: number }>(`/api/admin/releases/reach/?version=${encodeURIComponent(version)}`);
+
 // --- Announcements (notification bars on the customer dashboard and the website) -------------
 
 export type AnnouncementKind = "offer" | "discount" | "news" | "version" | "maintenance";
@@ -402,6 +465,12 @@ export const updateAnnouncement = (id: number, patch: Partial<AnnouncementInput>
 
 export const deleteAnnouncement = (id: number) =>
   request<null>(`/api/admin/announcements/${id}/`, { method: "DELETE" });
+
+/** How many customers a dashboard message with this audience reaches right now. */
+export const getAnnouncementReach = (audience: AnnouncementAudience, planCodes: string[]) =>
+  request<{ customers: number; total: number }>(
+    `/api/admin/announcements/reach/?audience=${audience}&plans=${encodeURIComponent(planCodes.join(","))}`,
+  );
 
 // --- Subscriptions (billing by country: currency, tax, payment link, invoices) ----------------
 

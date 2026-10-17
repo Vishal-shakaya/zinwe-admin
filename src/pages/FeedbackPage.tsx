@@ -1,6 +1,8 @@
 import { useCallback, useMemo, useState, type ReactElement } from "react";
+import { Link } from "react-router-dom";
 import { getFeedback, type FeedbackRow } from "../lib/api";
 import { dateTime } from "../lib/format";
+import { pageName } from "../lib/pages";
 import { useLoad } from "../lib/useLoad";
 import { PageHeader } from "../components/PageHeader";
 
@@ -122,6 +124,7 @@ export function FeedbackPage(): ReactElement {
                     <th>Feedback</th>
                     <th>Customer</th>
                     <th>Sent</th>
+                    <th>Follow up</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -132,7 +135,7 @@ export function FeedbackPage(): ReactElement {
                       </td>
                       <td className="fb-msg">
                         {r.message ? r.message : <span className="muted">No comment</span>}
-                        {r.page ? <small className="muted block">from {r.page}</small> : null}
+                        {r.page ? <small className="muted block">Sent from {pageName(r.page)}</small> : null}
                       </td>
                       <td>
                         <b>{r.customer.full_name || r.customer.email}</b>
@@ -140,6 +143,19 @@ export function FeedbackPage(): ReactElement {
                         {r.customer.company ? <small className="muted block">{r.customer.company}</small> : null}
                       </td>
                       <td className="nowrap">{dateTime(r.created_at)}</td>
+                      <td>
+                        <div className="fb-actions">
+                          <Link
+                            className={"btn btn--sm " + (r.rating <= 6 ? "btn--primary" : "btn--ghost")}
+                            to={`/subscribers?compose=${r.customer.id}`}
+                          >
+                            Email them
+                          </Link>
+                          <Link className="link-btn" to={`/subscribers?open=${r.customer.id}`}>
+                            Open customer
+                          </Link>
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

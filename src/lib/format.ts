@@ -31,6 +31,7 @@ const METHOD_LABEL: Record<string, string> = {
   upi: "UPI",
   bank_transfer: "Bank transfer",
   paypal: "PayPal",
+  skydo: "Skydo",
   cheque: "Cheque",
   cash: "Cash",
 };

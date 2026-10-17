@@ -4,8 +4,9 @@ import { fetchProof } from "../lib/api";
 type ProofState = { url: string; type: string } | "loading" | "error";
 
 /**
- * The customer's uploaded receipt, fetched with the staff token (it's never public).
- * Images preview inline (click for full size); PDFs open in a new tab.
+ * The customer's uploaded receipt, fetched with the staff token (it's never public), shown large enough
+ * to read (J8-01): an image fits the box without cropping, a PDF opens inline. "Open full size" opens it in
+ * a new tab for zooming.
  */
 export function PaymentProof({ paymentId, hasProof }: { paymentId: number; hasProof: boolean }): ReactElement {
   const [state, setState] = useState<ProofState>("loading");
@@ -29,17 +30,35 @@ export function PaymentProof({ paymentId, hasProof }: { paymentId: number; hasPr
     };
   }, [paymentId, hasProof]);
 
-  if (!hasProof) return <p className="proof proof--none">No proof file was attached.</p>;
-  if (state === "loading") return <div className="proof proof--loading" aria-label="Loading proof" />;
-  if (state === "error") return <p className="proof proof--none row-error">The proof file couldn't be loaded.</p>;
+  if (!hasProof) {
+    return (
+      <p className="receipt receipt--none">
+        <b>No receipt was attached.</b> Check the reference and amount against your bank statement, UPI app or Skydo
+        before approving.
+      </p>
+    );
+  }
+  if (state === "loading") return <div className="receipt receipt--loading" aria-label="Loading the receipt" />;
+  if (state === "error") {
+    return <p className="receipt receipt--none row-error">The receipt couldn't be loaded. Reload the page and try again.</p>;
+  }
 
-  return state.type.startsWith("image/") ? (
-    <a className="proof" href={state.url} target="_blank" rel="noreferrer" title="Open full size">
-      <img className="proof__img" src={state.url} alt="Payment proof uploaded by the customer" />
-    </a>
-  ) : (
-    <a className="btn btn--ghost btn--sm" href={state.url} target="_blank" rel="noreferrer">
-      Open proof (PDF)
-    </a>
+  const isPdf = state.type === "application/pdf";
+  return (
+    <figure className="receipt">
+      {state.type.startsWith("image/") ? (
+        <img className="receipt__img" src={state.url} alt="Payment receipt uploaded by the customer" />
+      ) : isPdf ? (
+        <iframe className="receipt__pdf" src={state.url} title="Payment receipt (PDF) uploaded by the customer" />
+      ) : (
+        <p className="receipt--none">This receipt can't be previewed here.</p>
+      )}
+      <figcaption className="receipt__bar">
+        <span>Receipt from the customer{isPdf ? " (PDF)" : ""}</span>
+        <a href={state.url} target="_blank" rel="noreferrer">
+          Open full size ↗
+        </a>
+      </figcaption>
+    </figure>
   );
 }

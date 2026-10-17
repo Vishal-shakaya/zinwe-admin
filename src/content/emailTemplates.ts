@@ -75,8 +75,8 @@ export function contextFor(row: Subscriber): TemplateContext {
     plain: { company: row.company?.name ?? "your team", planName: row.plan?.name ?? "your plan" },
     links: {
       dashboard: `${base}/app`,
-      billing: `${base}/app/billing`,
-      devices: `${base}/app/devices`,
+      billing: `${base}/app/settings/billing`,
+      devices: `${base}/app/team`,
       setup: `${base}/app/setup`,
       feedback: `${base}/app/feedback`,
       plans: `${base}/plans`,
@@ -108,7 +108,7 @@ export const EMAIL_TEMPLATES: EmailTemplate[] = [
         p(`Hi ${c.firstName},`, `Thanks for choosing Zinwe for ${c.company}. Getting set up takes about 10 minutes:`) +
         ul(
           `<strong>Pick a plan</strong>: Free forever covers up to 3 PCs at no cost.`,
-          `<strong>Install the agent</strong> on each PC with your enrollment key from ${a(c.links.devices, "Devices")}.`,
+          `<strong>Add your team</strong> in ${a(c.links.devices, "Team &amp; devices")}: each person gets a Member ID. Install Zinwe on their PC and enter it.`,
           `<strong>Set your rules</strong> for USB, remote access and software installs on ${a(c.links.setup, "Setup")}.`,
         ) +
         p(`Alerts start arriving in plain English as soon as a PC checks in. Reply to this email if anything is unclear; a real person reads it.`),
@@ -123,8 +123,8 @@ export const EMAIL_TEMPLATES: EmailTemplate[] = [
       subject: "Need a hand installing Zinwe on your PCs?",
       html:
         p(`Hi ${c.firstName},`, `We noticed ${c.company} hasn't connected a PC to Zinwe yet. Here's the quickest way:`) +
-        `<ol><li>Open ${a(c.links.devices, "Devices")} in your dashboard and copy your enrollment key.</li>` +
-        `<li>Run the Zinwe installer on the PC and paste the key when asked.</li>` +
+        `<ol><li>Open ${a(c.links.devices, "Team &amp; devices")} in your dashboard and add the person who uses the PC. They get a Member ID.</li>` +
+        `<li>Run the Zinwe installer on their PC and enter the Member ID when asked.</li>` +
         `<li>The PC shows up in your dashboard within a minute.</li></ol>` +
         p(`Prefer we do it with you? Reply with a time that suits you and we'll set up a 20-minute call.`),
     }),
@@ -158,7 +158,7 @@ export const EMAIL_TEMPLATES: EmailTemplate[] = [
         p(
           `Hi ${c.firstName},`,
           `You chose the <strong>${c.planName}</strong> plan (${c.planPrice}${c.planDevices ? `, up to ${c.planDevices}` : ""}), but we haven't received a payment yet, so the plan isn't active.`,
-          `To activate it, pay by UPI, bank transfer or PayPal and send us the reference from ${a(c.links.billing, "Billing")} in your dashboard. We usually confirm within a few hours on working days.`,
+          `To activate it, pay by UPI or bank transfer (or Skydo from outside India) and upload the receipt on ${a(c.links.billing, "Billing")} in your dashboard. We usually confirm within a few hours on working days.`,
           `Rather start free? Free forever covers up to 3 PCs and needs no payment.`,
         ),
     }),
@@ -209,7 +209,7 @@ export const EMAIL_TEMPLATES: EmailTemplate[] = [
         p(
           `Hi ${c.firstName},`,
           `Your payment is confirmed and <strong>${c.planName}</strong> is now active for ${c.company}${c.endsOn ? ` until <strong>${c.endsOn}</strong>` : ""}.`,
-          `Next steps: install the agent on the rest of your PCs from ${a(c.links.devices, "Devices")}, and turn on the alerts you need on ${a(c.links.setup, "Setup")}.`,
+          `Next steps: add the rest of your team in ${a(c.links.devices, "Team &amp; devices")} and install Zinwe on their PCs, then turn on the alerts you need on ${a(c.links.setup, "Setup")}.`,
           `Thank you for trusting Zinwe.`,
         ),
     }),
@@ -227,7 +227,7 @@ export const EMAIL_TEMPLATES: EmailTemplate[] = [
       html:
         p(
           `Hi ${c.firstName},`,
-          `Your <strong>${c.planName}</strong> plan for ${c.company} ends${c.endsOn ? ` on <strong>${c.endsOn}</strong>` : " soon"}. To keep your PCs protected without a gap, renew from ${a(c.links.billing, "Billing")} and send the payment reference (${c.planPrice}).`,
+          `Your <strong>${c.planName}</strong> plan for ${c.company} ends${c.endsOn ? ` on <strong>${c.endsOn}</strong>` : " soon"}. To keep your PCs protected without a gap, renew from ${a(c.links.billing, "Billing")}: pay ${c.planPrice} and upload the receipt there.`,
           `After it ends, monitoring and alerts pause until the plan is renewed. Your settings and history are kept.`,
         ),
     }),
@@ -301,7 +301,7 @@ export const EMAIL_TEMPLATES: EmailTemplate[] = [
     id: "password_reset",
     group: "Account",
     label: "Your password was reset",
-    when: "After you set a new password for them (share the password itself privately).",
+    when: "A personal note after you set a password yourself (Zinwe already emails them that it changed; share the password itself privately).",
     build: (c) => ({
       subject: "Your Zinwe password was reset",
       html: p(

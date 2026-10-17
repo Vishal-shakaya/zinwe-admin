@@ -64,7 +64,7 @@ export default function DocsPage(): ReactElement {
     fetch(`${API}/index.json`)
       .then((r) => r.json() as Promise<DocIndex>)
       .then(setIndex)
-      .catch(() => setError("The documentation server isn't answering. Is the admin running with `npm run dev`?"));
+      .catch(() => setError("The project documentation isn't available on this copy of the back office."));
   }, [version]);
 
   const pages = index?.pages ?? [];

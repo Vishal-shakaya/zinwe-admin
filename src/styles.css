@@ -1847,3 +1847,377 @@ body {
   font-size: 13.5px;
   line-height: 1.5;
 }
+
+/* ======================================================================================
+   Fix round 2026-10-17 (J8: staff journey). Later rules win over the compact passes above.
+   ====================================================================================== */
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---------- Shell: sidebar badges, full-height column (J8-21, J8-26) ---------- */
+
+.nav__link { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.nav__badge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--orange);
+  color: var(--ink);
+  font-size: 11.5px;
+  font-weight: 700;
+  line-height: 1;
+}
+@media (min-width: 761px) {
+  /* The sidebar column stays white to the bottom of long pages (and in full-page screenshots). */
+  .shell { background: linear-gradient(90deg, var(--white) 0 231px, var(--line) 231px 232px, transparent 232px); }
+}
+
+/* ---------- Phones: nav wraps instead of widening the page (J8-08) ---------- */
+
+@media (max-width: 760px) {
+  .side { padding: 10px 12px; gap: 6px 8px; }
+  .side .brand { padding: 4px; }
+  .side__foot .btn { padding: 6px 10px; font-size: 12.5px; }
+  .nav { order: 3; flex-basis: 100%; flex-wrap: wrap; gap: 4px; }
+  .nav__link { padding: 6px 10px; font-size: 13px; }
+  .main__inner { width: 100%; }
+}
+
+/* ---------- Payment review: receipt large, staff check beside it (J8-01 / J8-03) ---------- */
+
+.modal:has(.rv-section) { width: min(1000px, calc(100vw - 32px)); }
+.rv {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+.rv__receipt { min-width: 0; }
+.receipt {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--white);
+  overflow: hidden;
+}
+.receipt__img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 520px;
+  min-height: 160px;
+  object-fit: contain;
+  background: #f3f4f6;
+}
+.receipt__pdf { display: block; width: 100%; height: 520px; border: 0; background: #f3f4f6; }
+.receipt__bar {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 10px;
+  border-top: 1px solid var(--line);
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.receipt__bar a { color: var(--orange-deep); font-weight: 600; text-decoration: none; }
+.receipt__bar a:hover { text-decoration: underline; }
+.receipt--loading {
+  height: 320px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: linear-gradient(90deg, #f3f4f6 25%, #eceef1 37%, #f3f4f6 63%) 0 0 / 400% 100%;
+  animation: shimmer 1.2s ease infinite;
+}
+.receipt--none {
+  margin: 0;
+  padding: 14px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--white);
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.rv__side { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.rv__facts {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 14px;
+  padding: 10px 12px;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+.rv__facts dt {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--mute);
+}
+.rv__facts dd { margin: 1px 0 0; font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+.rv__facts small { font-weight: 500; }
+.rv__facts .rv__due { font-size: 18px; }
+.rv__check {
+  margin: 0;
+  padding: 10px 12px 12px;
+  border: 1.5px solid var(--orange);
+  border-radius: var(--radius-sm);
+  background: var(--white);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.rv__check legend { padding: 0 4px; font-size: 12.5px; font-weight: 700; color: var(--orange-deep); }
+.rv__hint { margin: 0; font-size: 12px; color: var(--ink-2); }
+.rv__field { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; font-weight: 600; }
+.rv__field input {
+  width: 100%;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1.5px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  background: var(--white);
+}
+.rv__field input:focus { outline: 0; border-color: var(--orange-deep); box-shadow: 0 0 0 3px rgba(253, 109, 2, 0.16); }
+.rv__money { display: flex; align-items: center; gap: 6px; }
+.rv__money > span { font-weight: 700; color: var(--ink-2); }
+.rv__money.is-warn input { border-color: var(--bad); }
+.rv__warn {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--bad-tint);
+  color: var(--bad);
+  font-size: 12.5px;
+}
+.rv-dup {
+  margin: 0;
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--warn-tint);
+  color: var(--warn);
+  font-size: 13px;
+}
+.rv-dup--bad { background: var(--bad-tint); color: var(--bad); }
+@media (max-width: 760px) {
+  .rv { grid-template-columns: minmax(0, 1fr); }
+  .rv__facts { grid-template-columns: minmax(0, 1fr); }
+  .receipt__img { max-height: 70vh; }
+  .receipt__pdf { height: 70vh; }
+}
+
+/* Reject: a multi-line reason with quick picks (J8-24). */
+.modal-reject { flex-direction: column; flex-wrap: nowrap; align-items: stretch; }
+.modal-reject__label { font-size: 12.5px; font-weight: 600; }
+.modal-reject__label small { font-weight: 500; color: var(--mute); }
+.modal-reject textarea {
+  width: 100%;
+  padding: 8px 11px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-size: 13px;
+  resize: vertical;
+}
+.modal-reject textarea:focus { outline: 2px solid var(--orange); outline-offset: -1px; border-color: transparent; }
+.modal-reject__actions { display: flex; justify-content: flex-end; gap: 8px; }
+.chip--btn { cursor: pointer; font: inherit; font-size: 12px; padding: 3px 9px; }
+.chip--btn:hover { border-color: var(--orange); color: var(--ink); }
+.chip--btn:focus-visible { outline: 2px solid var(--orange); outline-offset: 1px; }
+
+/* Confirmations: warnings, facts, ticks and reason boxes. */
+.confirm .confirm__note--warn { background: var(--bad-tint); color: var(--bad); }
+.confirm .confirm__facts { padding: 8px 12px; background: var(--paper); border-radius: var(--radius-sm); font-size: 13.5px; }
+.confirm__check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 13.5px;
+  cursor: pointer;
+}
+.confirm__check input { margin-top: 3px; accent-color: var(--orange); }
+.confirm__field { display: flex; flex-direction: column; gap: 5px; margin-top: 10px; font-size: 13px; font-weight: 600; }
+.confirm__field small { font-weight: 500; color: var(--mute); }
+.confirm__field textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1.5px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 400;
+  resize: vertical;
+}
+.confirm__field textarea:focus { outline: 0; border-color: var(--orange-deep); box-shadow: 0 0 0 3px rgba(253, 109, 2, 0.16); }
+
+/* Row actions: a menu button, not a <select> (J8-04). */
+.actions-btn { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.actions-btn.is-bad { color: var(--bad); border-color: #f2c4bd; }
+.menu { display: flex; flex-direction: column; gap: 2px; }
+.menu__item {
+  appearance: none;
+  border: 0;
+  background: none;
+  text-align: left;
+  font: inherit;
+  font-size: 13.5px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--ink);
+}
+.menu__item:hover,
+.menu__item:focus-visible { background: var(--paper); outline: 0; }
+.menu__item--danger { color: var(--bad); }
+.menu__item--danger:hover { background: var(--bad-tint); }
+
+/* Internal note: clearly not for the customer (j3), kept apart from the payment review. */
+.note-box {
+  padding: 10px 12px;
+  border: 1px dashed #c9cdd4;
+  border-radius: var(--radius);
+  background: #f6f7f9;
+}
+.note-box .msec__title { gap: 6px; }
+.note-box__who { text-transform: none; letter-spacing: 0; font-weight: 500; color: var(--mute); }
+.note-box .remark-input { background: var(--white); }
+.remark-draft { display: block; margin-top: 3px; font-size: 11px; font-weight: 600; color: var(--warn); }
+.pop__meta svg { vertical-align: -2px; }
+
+/* Reset password: email first, by hand second (J8-05). */
+.pw-reset__row { align-items: center; }
+.pw-reset__lede { flex: 1 1 260px; margin: 0; font-size: 13px; color: var(--ink-2); }
+.pw-reset__more { align-self: flex-start; font-size: 12.5px; }
+.pw-reset__manual { display: flex; flex-direction: column; gap: 6px; padding-top: 8px; border-top: 1px solid #f3cfae; }
+.pw-reset .alert { margin: 0; }
+
+/* ---------- Subscribers on a phone: one card per customer, Review first (J8-08) ---------- */
+
+@media (max-width: 640px) {
+  .table-card:has(.sheet--subs) { overflow: visible; background: none; border: 0; box-shadow: none; padding: 0; }
+  .sheet.sheet--subs { min-width: 0; width: 100%; border-collapse: separate; }
+  .sheet--subs thead { display: none; }
+  .sheet--subs tbody { display: flex; flex-direction: column; gap: 10px; }
+  .sheet--subs tbody > tr {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px 14px;
+    background: var(--white);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+  }
+  .sheet--subs tbody > tr.is-waiting { border-color: var(--orange); box-shadow: inset 4px 0 0 var(--orange); }
+  .sheet.sheet--subs tbody > tr > td {
+    display: block;
+    order: 2;
+    padding: 0;
+    border: 0;
+    max-width: none;
+  }
+  .sheet--subs tbody > tr > td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 2px;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--mute);
+  }
+  .sheet.sheet--subs tbody > tr > td.cell-name { order: 0; }
+  .sheet.sheet--subs tbody > tr > td.cell-pay { order: 1; padding: 10px 12px; background: var(--paper); border-radius: var(--radius-sm); }
+  .sheet.sheet--subs tbody > tr.is-waiting > td.cell-pay { background: var(--orange-tint); }
+  .sheet--subs .cell-pay .review-btn { width: 100%; justify-content: center; }
+  .sheet.sheet--subs .cell-email { display: inline; max-width: none; }
+  .sheet.sheet--subs .remark-cell { max-width: none; }
+  .sheet.sheet--subs .plan-select { width: 100%; max-width: 260px; }
+  .sheet.sheet--subs .pill,
+  .sheet.sheet--subs small.muted { white-space: normal; }
+  .sheet--subs tr.sheet__empty-row { padding: 18px; text-align: center; }
+  .sheet.sheet--subs tr.is-waiting > td:first-child { box-shadow: none; }
+  .page-head { flex-direction: column; align-items: stretch; }
+  .page-head__actions .search { flex: 1 1 auto; }
+}
+@media (max-width: 640px) {
+  .modal:has(.rv-section) { width: 100vw; }
+  .modal__foot .modal__hint { flex: 1 1 100%; }
+  .modal__foot > .btn { flex: 1 1 auto; }
+  .modal-reject__actions .btn { flex: 1 1 auto; }
+}
+
+/* ---------- Support: who, plan context, resolve wording (J8-10 / J8-18) ---------- */
+
+.sup-row__who { display: flex; flex-direction: column; gap: 1px; }
+.sup-row__who b { font-weight: 600; color: var(--ink); }
+.sup-row__person { color: var(--ink-2); overflow-wrap: anywhere; }
+.sup-pane__who { min-width: 0; flex: 1 1 320px; }
+.sup-pane__back { font-size: 12.5px; margin-bottom: 4px; }
+.sup-ctx {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--paper);
+  font-size: 13px;
+}
+.sup-ctx .btn { margin-left: auto; text-decoration: none; }
+.sup-reply__actions { align-items: center; flex-wrap: wrap; }
+.sup-reply__hint { margin-right: auto; font-size: 12px; }
+@media (max-width: 900px) {
+  .sup-pane { scroll-margin-top: 12px; }
+  .sup-list { max-height: 50vh; }
+}
+@media (min-width: 901px) {
+  .sup-pane__back { display: none; }
+}
+
+/* ---------- Releases form (J8-06) ---------- */
+
+.release-form__grid { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 0 16px; }
+.field__hint { display: block; margin-top: 4px; font-size: 12px; color: var(--mute); }
+.field__error { display: block; margin-top: 4px; font-size: 12px; font-weight: 600; color: var(--bad); }
+.field input[aria-invalid="true"] { border-color: var(--bad); }
+.release-form .actions { align-items: center; flex-wrap: wrap; }
+@media (max-width: 640px) {
+  .release-form__grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ---------- Announcements (J8-19) ---------- */
+
+.ann-reach { font-weight: 600; color: var(--ink-2); }
+.ann-off-note { margin: 8px 0 0; font-size: 12.5px; }
+#ann-plan_codes:focus { outline: 2px solid var(--orange); outline-offset: 2px; border-radius: 4px; }
+
+/* ---------- Feedback follow-up (J8-22) ---------- */
+
+.fb-actions { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; white-space: nowrap; }
+.fb-actions .btn { text-decoration: none; }
+
+/* ---------- Dashboard: what needs you first (J8-21) ---------- */
+
+.stats--dash .stat--hot .stat__value { color: var(--orange-deep); }

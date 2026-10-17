@@ -1,6 +1,8 @@
-import { useCallback, useState, type FormEvent, type ReactElement } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactElement } from "react";
 import {
+  ApiError,
   createAnnouncement,
+  getAnnouncementReach,
   deleteAnnouncement,
   getAnnouncements,
   getPlans,
@@ -12,7 +14,7 @@ import {
   type AnnouncementPlacement,
   type AnnouncementStatus,
 } from "../lib/api";
-import { dateTime } from "../lib/format";
+import { dateTime, titleCase } from "../lib/format";
 import { useLoad } from "../lib/useLoad";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Modal } from "../components/Modal";
@@ -152,6 +154,9 @@ function fromLocalInput(value: string): string | null {
 export function AnnouncementsPage(): ReactElement {
   const load = useCallback(() => getAnnouncements(), []);
   const { data, error, pending, reload } = useLoad(load);
+  const loadPlans = useCallback(() => getPlans(), []);
+  const plans = useLoad(loadPlans);
+  const planName = (code: string) => plans.data?.find((p) => p.code === code)?.name ?? titleCase(code);
   const toast = useToast();
   const [editing, setEditing] = useState<Announcement | "new" | null>(null);
   const [deleting, setDeleting] = useState<Announcement | null>(null);
@@ -224,7 +229,7 @@ export function AnnouncementsPage(): ReactElement {
                       <td>
                         {a.placement === "website" ? "Every visitor" : AUDIENCE_LABEL[a.audience]}
                         {a.audience === "plans" && a.placement !== "website" ? (
-                          <div className="muted">{a.plan_codes.join(", ")}</div>
+                          <div className="muted">{a.plan_codes.map(planName).join(", ")}</div>
                         ) : null}
                       </td>
                       <td className="nowrap">
@@ -293,6 +298,63 @@ export function AnnouncementsPage(): ReactElement {
   );
 }
 
+type FieldKey = "title" | "cta_label" | "cta_href" | "plan_codes" | "ends_at";
+
+/** A link the bar can open: a page on zinwe.io (/…), an https:// link, or an email address (mailto:). */
+function linkError(href: string): string | null {
+  const v = href.trim();
+  if (!v) return null;
+  if (v.startsWith("/") && !v.startsWith("//")) return null;
+  if (v.startsWith("https://")) return null;
+  if (/^mailto:[^@\s]+@[^@\s]+\.[^@\s]+$/i.test(v)) return null;
+  if (v.startsWith("http://")) return "Use https:// (secure links only).";
+  if (/^[^@\s/]+@[^@\s]+\.[^@\s]+$/.test(v)) return `For an email address, write mailto:${v}`;
+  return "Use a page on zinwe.io (starting with /), an https:// link, or mailto:hello@zinwe.io.";
+}
+
+function validate(form: AnnouncementInput): Partial<Record<FieldKey, string>> {
+  const errors: Partial<Record<FieldKey, string>> = {};
+  if (!form.title.trim()) errors.title = "Write the headline customers will see.";
+  const label = form.cta_label.trim();
+  const href = form.cta_href.trim();
+  if (label && !href) errors.cta_href = "Add where the button goes, or clear the button text.";
+  if (href && !label) errors.cta_label = "Add the button text, or clear the link.";
+  const bad = linkError(href);
+  if (bad) errors.cta_href = bad;
+  if (form.placement !== "website" && form.audience === "plans" && form.plan_codes.length === 0) {
+    errors.plan_codes = "Pick at least one plan.";
+  }
+  if (form.ends_at && new Date(form.ends_at).getTime() <= new Date(form.starts_at).getTime()) {
+    errors.ends_at = "The end must be after the start.";
+  }
+  return errors;
+}
+
+/** How many customers the dashboard bar reaches now, for this audience (J8-19). */
+function useReach(form: AnnouncementInput): { customers: number; total: number } | null {
+  const [reach, setReach] = useState<{ customers: number; total: number } | null>(null);
+  const plans = form.plan_codes.join(",");
+  const dashboard = form.placement !== "website";
+  useEffect(() => {
+    if (!dashboard) return;
+    let alive = true;
+    const timer = window.setTimeout(() => {
+      getAnnouncementReach(form.audience, plans ? plans.split(",") : [])
+        .then((r) => {
+          if (alive) setReach(r);
+        })
+        .catch(() => {
+          if (alive) setReach(null);
+        });
+    }, 250);
+    return () => {
+      alive = false;
+      window.clearTimeout(timer);
+    };
+  }, [form.audience, plans, dashboard]);
+  return dashboard ? reach : null;
+}
+
 function AnnouncementEditor({
   existing,
   onClose,
@@ -311,20 +373,34 @@ function AnnouncementEditor({
   });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Partial<Record<FieldKey, string>>>({});
+  const titleInput = useRef<HTMLInputElement>(null);
+  const reach = useReach(form);
 
-  const set = <K extends keyof AnnouncementInput>(key: K, value: AnnouncementInput[K]) =>
+  const set = <K extends keyof AnnouncementInput>(key: K, value: AnnouncementInput[K]) => {
     setForm((f) => ({ ...f, [key]: value }));
+    if (key in errors) setErrors((e) => ({ ...e, [key]: undefined }));
+  };
   const togglePlan = (code: string) =>
     set("plan_codes", form.plan_codes.includes(code) ? form.plan_codes.filter((c) => c !== code) : [...form.plan_codes, code]);
 
-  const ready =
-    form.title.trim().length > 0 &&
-    Boolean(form.cta_label.trim()) === Boolean(form.cta_href.trim()) &&
-    (form.audience !== "plans" || form.placement === "website" || form.plan_codes.length > 0);
+  const applyPreset = (value: Partial<AnnouncementInput>) => {
+    setForm((f) => ({ ...f, ...value }));
+    setErrors({});
+    // Presets that leave the headline empty (a discount, a version, a time) want it written now.
+    if (!value.title) window.setTimeout(() => titleInput.current?.focus(), 0);
+  };
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!ready || busy) return;
+    if (busy) return;
+    const found = validate(form);
+    setErrors(found);
+    if (Object.keys(found).length) {
+      const first = Object.keys(found)[0];
+      window.setTimeout(() => document.getElementById(`ann-${first}`)?.focus(), 0);
+      return;
+    }
     setBusy(true);
     setError(null);
     const payload = {
@@ -340,10 +416,36 @@ function AnnouncementEditor({
       const saved = existing ? await updateAnnouncement(existing.id, payload) : await createAnnouncement(payload);
       onSaved(saved, !existing);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't save.");
+      const fields = e instanceof ApiError ? e.fields : {};
+      const atFields = Object.fromEntries(
+        Object.entries(fields).filter(([k]) => ["title", "cta_label", "cta_href", "plan_codes", "ends_at"].includes(k)),
+      ) as Partial<Record<FieldKey, string>>;
+      setErrors(atFields);
+      // Anything not tied to a field shows in the footer.
+      setError(Object.keys(atFields).length ? null : e instanceof Error ? e.message : "Couldn't save.");
       setBusy(false);
     }
   };
+
+  const fieldProps = (key: FieldKey) => ({
+    id: `ann-${key}`,
+    "aria-invalid": errors[key] ? true : undefined,
+    "aria-describedby": errors[key] ? `ann-${key}-error` : undefined,
+  });
+  const fieldError = (key: FieldKey) =>
+    errors[key] ? (
+      <small className="field__error" id={`ann-${key}-error`}>
+        {errors[key]}
+      </small>
+    ) : null;
+
+  const startsLater = new Date(form.starts_at).getTime() > Date.now() + 60_000;
+  const reachText =
+    form.placement === "website"
+      ? "Shows to every visitor of zinwe.io"
+      : reach
+        ? `Shows to ${reach.customers} of ${reach.total} customer${reach.total === 1 ? "" : "s"} on the dashboard${form.placement === "both" ? " (and every website visitor)" : ""}`
+        : null;
 
   return (
     <Modal
@@ -351,22 +453,23 @@ function AnnouncementEditor({
       subtitle="Customers see it on their next page load. Closing it hides it for them until you edit it."
       onClose={onClose}
       footer={
-        <div className="actions">
-          <button type="submit" form="announcement-form" className="btn btn--primary" disabled={!ready || busy}>
-            {busy ? "Saving…" : existing ? "Save" : "Push announcement"}
-          </button>
+        <>
+          {reachText ? <span className="modal__hint ann-reach">{reachText}</span> : null}
           <button type="button" className="btn btn--ghost" onClick={onClose}>
             Cancel
           </button>
-        </div>
+          <button type="submit" form="announcement-form" className="btn btn--primary" disabled={busy}>
+            {busy ? "Saving…" : existing ? "Save" : "Push announcement"}
+          </button>
+        </>
       }
     >
-      <form id="announcement-form" onSubmit={submit}>
+      <form id="announcement-form" onSubmit={submit} noValidate>
         {!existing ? (
           <div className="ann-presets">
             <span className="muted">Start from:</span>
             {PRESETS.map((p) => (
-              <button key={p.label} type="button" className="chip ann-preset" onClick={() => setForm((f) => ({ ...f, ...p.value }))}>
+              <button key={p.label} type="button" className="chip ann-preset" onClick={() => applyPreset(p.value)}>
                 {p.label}
               </button>
             ))}
@@ -410,12 +513,14 @@ function AnnouncementEditor({
         <label className="field">
           <span>Headline (up to 120 characters)</span>
           <input
+            ref={titleInput}
             value={form.title}
             maxLength={120}
             onChange={(e) => set("title", e.target.value)}
             placeholder={HEADLINE_HINT[form.kind]}
-            required
+            {...fieldProps("title")}
           />
+          {fieldError("title")}
         </label>
         <label className="field">
           <span>Detail (optional, up to 280)</span>
@@ -425,7 +530,14 @@ function AnnouncementEditor({
         <div className="ann-grid">
           <label className="field">
             <span>Button text (optional)</span>
-            <input value={form.cta_label} maxLength={40} onChange={(e) => set("cta_label", e.target.value)} placeholder="Upgrade" />
+            <input
+              value={form.cta_label}
+              maxLength={40}
+              onChange={(e) => set("cta_label", e.target.value)}
+              placeholder="Upgrade"
+              {...fieldProps("cta_label")}
+            />
+            {fieldError("cta_label")}
           </label>
           <label className="field">
             <span>Button link</span>
@@ -433,13 +545,19 @@ function AnnouncementEditor({
               value={form.cta_href}
               maxLength={300}
               onChange={(e) => set("cta_href", e.target.value)}
-              placeholder="/app/upgrade?plan=businesses or https://…"
+              onBlur={() => {
+                const bad = linkError(form.cta_href);
+                if (bad) setErrors((er) => ({ ...er, cta_href: bad }));
+              }}
+              placeholder="/app/upgrade, https://… or mailto:hello@zinwe.io"
+              {...fieldProps("cta_href")}
             />
+            {fieldError("cta_href")}
           </label>
         </div>
 
         {form.placement !== "website" ? (
-          <fieldset className="field ann-fieldset">
+          <fieldset className="field ann-fieldset" aria-describedby={errors.plan_codes ? "ann-plan_codes-error" : undefined}>
             <span>Who sees it on the dashboard</span>
             <div className="ann-radios">
               {Object.entries(AUDIENCE_LABEL).map(([value, label]) => (
@@ -455,7 +573,7 @@ function AnnouncementEditor({
               ))}
             </div>
             {form.audience === "plans" ? (
-              <div className="ann-radios">
+              <div className="ann-radios" id="ann-plan_codes" tabIndex={-1}>
                 {(plans.data ?? []).map((p) => (
                   <label key={p.code}>
                     <input type="checkbox" checked={form.plan_codes.includes(p.code)} onChange={() => togglePlan(p.code)} /> {p.name}
@@ -463,6 +581,7 @@ function AnnouncementEditor({
                 ))}
               </div>
             ) : null}
+            {fieldError("plan_codes")}
             {form.placement === "both" ? (
               <small className="muted">The website shows it to every visitor.</small>
             ) : null}
@@ -480,16 +599,24 @@ function AnnouncementEditor({
           </label>
           <label className="field">
             <span>Ends (optional)</span>
-            <input type="datetime-local" value={toLocalInput(form.ends_at)} onChange={(e) => set("ends_at", fromLocalInput(e.target.value))} />
+            <input
+              type="datetime-local"
+              value={toLocalInput(form.ends_at)}
+              onChange={(e) => set("ends_at", fromLocalInput(e.target.value))}
+              {...fieldProps("ends_at")}
+            />
+            {fieldError("ends_at")}
           </label>
         </div>
 
         <div className="ann-checks">
           <label>
-            <input type="checkbox" checked={form.dismissible} onChange={(e) => set("dismissible", e.target.checked)} /> Customers can close it
+            <input type="checkbox" checked={form.is_active} onChange={(e) => set("is_active", e.target.checked)} />{" "}
+            {startsLater ? "Switched on (shows from the start time)" : "Live now"}
           </label>
           <label>
-            <input type="checkbox" checked={form.is_active} onChange={(e) => set("is_active", e.target.checked)} /> On
+            <input type="checkbox" checked={form.dismissible} onChange={(e) => set("dismissible", e.target.checked)} />{" "}
+            Customers can close it
           </label>
           <label>
             Priority{" "}
@@ -504,6 +631,9 @@ function AnnouncementEditor({
             <span className="muted"> (higher shows first)</span>
           </label>
         </div>
+        {!form.is_active ? (
+          <p className="muted ann-off-note">Off: saved, but nobody sees it until you switch it on.</p>
+        ) : null}
 
         {error ? <p className="alert alert--bad">{error}</p> : null}
       </form>

@@ -1,17 +1,14 @@
-import { Fragment, useCallback, useEffect, useMemo, useState, type ReactElement } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   approvePayment,
-  blockSubscriber,
-  changePlan,
-  deleteSubscriber,
   getCustomerEmails,
   getPlans,
   getSubscriber,
   getSubscribers,
+  isBlocked,
   rejectPayment,
   sendCustomerEmail,
-  setPassword,
   setRemark,
   unblockSubscriber,
   type Payment,
@@ -19,16 +16,26 @@ import {
   type SentEmail,
   type Subscriber,
 } from "../lib/api";
-import { date, dateTime, daysLeftLabel, inr, methodLabel, paymentTone, period, titleCase } from "../lib/format";
+import { refreshBadges } from "../lib/badges";
+import { date, dateTime, daysLeftLabel, inr, methodLabel, money, paymentTone, period, titleCase } from "../lib/format";
 import { useLoad } from "../lib/useLoad";
 import { Modal } from "../components/Modal";
 import { PageHeader } from "../components/PageHeader";
-import { PaymentProof } from "../components/PaymentProof";
 import { RichTextEditor, type RichTextValue } from "../components/RichTextEditor";
-import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Popover } from "../components/Popover";
 import { useToast } from "../components/Toast";
 import { EMAIL_TEMPLATES, TEMPLATE_GROUPS, contextFor } from "../content/emailTemplates";
+import { CustomerConfirm, type Confirm } from "./subscribers/CustomerConfirm";
+import { PasswordReset } from "./subscribers/PasswordReset";
+import {
+  ApproveConfirm,
+  EMPTY_CHECK,
+  PaymentReview,
+  RejectForm,
+  checkReady,
+  type ReceiptCheck,
+} from "./subscribers/PaymentReview";
+import { BlockIcon, CheckIcon, ChevronIcon, KeyIcon, LockIcon, MailIcon, NoteIcon, TrashIcon } from "./subscribers/icons";
 
 const COLUMNS = 8;
 
@@ -69,15 +76,23 @@ const STATUS_LABEL: Record<string, string> = {
   cancelled: "Cancelled",
 };
 
+/** The payment to show for a customer: the current plan's latest, else the last one they ever sent. */
+function lastPayment(row: Subscriber): { payment: Payment; current: boolean } | null {
+  if (row.payment) return { payment: row.payment, current: true };
+  return row.payments[0] ? { payment: row.payments[0], current: false } : null;
+}
+
 /**
  * Every customer in one table. Paid plans activate here: a customer's reported payment shows as
- * "Waiting"; Review opens the customer's details with the payment, its proof, and Approve / Reject.
+ * "Waiting"; Review opens the customer's details with the payment, its receipt, and Approve / Reject.
+ * `?review=<payment id>` (the link in the staff email) and `?open=<customer id>` open a customer directly.
  */
 export function SubscribersPage(): ReactElement {
   const loadSubs = useCallback(() => getSubscribers(), []);
   const loadPlans = useCallback(() => getPlans(), []);
   const subs = useLoad(loadSubs);
   const plans = useLoad(loadPlans);
+  const toast = useToast();
   const [query, setQuery] = useState("");
   const [params, setParams] = useSearchParams();
   const [openId, setOpenId] = useState<number | null>(null);
@@ -89,9 +104,37 @@ export function SubscribersPage(): ReactElement {
     : "all";
   const setFilter = (key: FilterKey) => setParams(key === "all" ? {} : { status: key }, { replace: true });
 
-  const rows = subs.data ?? [];
+  const rows = useMemo(() => subs.data ?? [], [subs.data]);
   const onUpdated = (row: Subscriber) => subs.setData(rows.map((r) => (r.id === row.id ? row : r)));
   const onDeleted = (id: number) => subs.setData(rows.filter((r) => r.id !== id));
+
+  // Deep links: ?review=<payment id> from the "payment to check" email, ?open=<customer id> from Support /
+  // Feedback, ?compose=<customer id> (Feedback's "Email them").
+  const review = params.get("review");
+  const open = params.get("open");
+  const compose = params.get("compose");
+  useEffect(() => {
+    if ((!review && !open && !compose) || !subs.data) return;
+    const paymentId = Number(review);
+    const found = review
+      ? subs.data.find((r) => r.payments.some((p) => p.id === paymentId))
+      : subs.data.find((r) => r.id === Number(open ?? compose));
+    if (found && compose) setEmailFor(found.id);
+    else if (found) setOpenId(found.id);
+    else {
+      toast(
+        review
+          ? `Payment #${review} isn't here any more (the customer may have been deleted).`
+          : "That customer isn't here any more.",
+        "bad",
+      );
+    }
+    const next = new URLSearchParams(params);
+    next.delete("review");
+    next.delete("open");
+    next.delete("compose");
+    setParams(next, { replace: true });
+  }, [review, open, compose, subs.data, params, setParams, toast]);
 
   const counts = useMemo(
     () => Object.fromEntries(FILTERS.map((f) => [f.key, rows.filter(f.test).length])) as Record<FilterKey, number>,
@@ -184,7 +227,7 @@ export function SubscribersPage(): ReactElement {
                 />
               ))}
               {shown.length === 0 ? (
-                <tr>
+                <tr className="sheet__empty-row">
                   <td colSpan={COLUMNS} className="sheet__empty">
                     {filter === "waiting" && !query ? "No payments are waiting for approval." : "No customer matches this filter."}
                   </td>
@@ -197,6 +240,7 @@ export function SubscribersPage(): ReactElement {
 
       {openRow ? (
         <SubscriberModal
+          key={openRow.id}
           row={openRow}
           plans={plans.data ?? []}
           onClose={() => setOpenId(null)}
@@ -217,9 +261,7 @@ export function SubscribersPage(): ReactElement {
   );
 }
 
-// --- One table row -------------------------------------------------------------
-
-type Confirm = { kind: "plan"; plan: PlanSummary } | { kind: "delete" } | null;
+// --- One table row (a card on phones) ----------------------------------------------------
 
 function SubscriberRow({
   row,
@@ -236,51 +278,32 @@ function SubscriberRow({
   onUpdated: (row: Subscriber) => void;
   onDeleted: (id: number) => void;
 }): ReactElement {
-  const toast = useToast();
-  const [busy, setBusy] = useState(false);
   const [confirm, setConfirm] = useState<Confirm>(null);
-
-  const run = async (fn: () => Promise<Subscriber>, done: string) => {
-    setBusy(true);
-    try {
-      onUpdated(await fn());
-      toast(done);
-    } catch (err) {
-      toast(err instanceof Error ? err.message : "Couldn't do that.", "bad");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const onAction = (value: string) => {
-    if (value === "active" && !row.is_active) void run(() => unblockSubscriber(row.id), `${row.email} can sign in again.`);
-    if (value === "blocked" && row.is_active) void run(() => blockSubscriber(row.id), `${row.email} is blocked and signed out.`);
-    if (value === "delete") setConfirm({ kind: "delete" });
-  };
-
   const sub = row.subscription;
-  const pay = row.payment;
-  const waiting = pay?.status === "submitted";
+  const last = lastPayment(row);
+  const pay = last?.payment ?? null;
+  const waiting = last?.current === true && pay?.status === "submitted";
+  const blocked = isBlocked(row);
 
   return (
-    <tr className={(row.is_active ? "" : "is-blocked") + (waiting ? " is-waiting" : "")}>
-      <td>
+    <tr className={(blocked ? "is-blocked" : "") + (waiting ? " is-waiting" : "")}>
+      <td className="cell-name">
         <button type="button" className="name-btn" onClick={onOpen}>
           {row.full_name || "Unnamed"}
         </button>
         {row.company ? <small className="muted block">{row.company.name}</small> : null}
         <small className="muted block">Joined {date(row.date_joined)}</small>
       </td>
-      <td>
+      <td className="cell-mail" data-label="Email">
         <span className="cell-email">{emailWithBreak(row.email)}</span>
         {!row.email_verified ? <small className="muted block">Email not verified</small> : null}
       </td>
-      <td>
+      <td data-label="Plan">
         <select
           className="plan-select"
           aria-label={`Plan for ${row.email}`}
           value={row.plan?.code ?? ""}
-          disabled={busy || plans.length === 0}
+          disabled={plans.length === 0}
           onChange={(e) => {
             const plan = plans.find((p) => p.code === e.target.value);
             if (plan) setConfirm({ kind: "plan", plan });
@@ -295,11 +318,16 @@ function SubscriberRow({
         </select>
         {row.plan ? <small className="muted block">{row.plan.max_devices} PCs</small> : null}
       </td>
-      <td>
-        {!row.is_active ? (
+      <td data-label="Status">
+        {blocked ? (
           <>
             <span className="pill pill--bad">Blocked</span>
             <small className="muted block">Can't sign in</small>
+          </>
+        ) : !row.is_active ? (
+          <>
+            <span className="pill pill--muted">Sign-up not finished</span>
+            <small className="muted block">Email code not entered</small>
           </>
         ) : sub ? (
           <>
@@ -310,24 +338,28 @@ function SubscriberRow({
           <span className="muted">No plan yet</span>
         )}
       </td>
-      <td>
+      <td className="cell-pay" data-label="Payment">
         {pay ? (
           <div className="pay-cell">
+            {!last?.current ? <small className="muted block">Last payment · {pay.plan.name}</small> : null}
             <span className={"pill pill--" + paymentTone(pay.status)}>
               {waiting
                 ? `${pay.is_renewal ? "Renewal" : "Waiting"} · cycle ${pay.cycle ?? 1}`
-                : pay.status === "verified"
-                  ? pay.is_renewal
-                    ? "Renewed"
-                    : "Approved"
-                  : "Rejected"}
+                : pay.status === "submitted"
+                  ? "Not reviewed"
+                  : pay.status === "verified"
+                    ? pay.is_renewal
+                      ? "Renewed"
+                      : "Approved"
+                    : "Rejected"}
             </span>
             <small className="muted block">
-              {inr(pay.amount_inr)} · {methodLabel(pay.method)}
+              {money(pay.due_total ?? pay.amount_inr, pay.currency ?? "INR")} · {methodLabel(pay.method)}
+              {!waiting ? ` · ${date(pay.reviewed_at ?? pay.submitted_at)}` : ""}
             </small>
           </div>
         ) : (
-          <span className="muted block">No payments</span>
+          <span className="muted block">No payments yet</span>
         )}
         {row.billing.cycles_paid > 0 ? (
           <small className="cycles">
@@ -344,90 +376,156 @@ function SubscriberRow({
           </button>
         )}
       </td>
-      <td className="remark-cell">
+      <td className="remark-cell" data-label="Internal note">
         <RemarkCell row={row} onUpdated={onUpdated} />
       </td>
-      <td>
+      <td data-label="Mail">
         <button type="button" className="icon-btn" onClick={onEmail} title={`Send an email to ${row.email}`}>
           <MailIcon />
           <span>Send mail</span>
         </button>
         <small className="muted block mail-meta">
           {row.emails.sent > 0
-            ? `${row.emails.sent} sent · last ${date(row.emails.last_sent_at)}`
-            : "None sent yet"}
+            ? `${row.emails.sent} sent by staff · last ${date(row.emails.last_sent_at)}`
+            : "None sent by staff yet"}
         </small>
+        {row.emails.total ? (
+          <small className="muted block mail-meta">
+            {row.emails.total} email{row.emails.total === 1 ? "" : "s"} in all
+          </small>
+        ) : null}
       </td>
-      <td>
-        <select
-          className={"status-select action-select" + (row.is_active ? "" : " is-bad")}
-          aria-label={`Action for ${row.email}`}
-          value={row.is_active ? "active" : "blocked"}
-          disabled={busy}
-          onChange={(e) => onAction(e.target.value)}
-        >
-          <option value="active">Active</option>
-          <option value="blocked">Block</option>
-          <option value="delete">Delete…</option>
-        </select>
-
-        <ConfirmFor confirm={confirm} row={row} onUpdated={onUpdated} onDeleted={onDeleted} onClose={() => setConfirm(null)} />
+      <td data-label="Action">
+        <ActionsMenu row={row} onOpen={onOpen} onEmail={onEmail} onConfirm={setConfirm} onUpdated={onUpdated} />
+        <CustomerConfirm
+          confirm={confirm}
+          row={row}
+          plans={plans}
+          onUpdated={onUpdated}
+          onDeleted={onDeleted}
+          onClose={() => setConfirm(null)}
+          onBlockInstead={() => setConfirm({ kind: "block" })}
+        />
       </td>
     </tr>
   );
 }
 
-function MailIcon(): ReactElement {
+/**
+ * J8-04: a menu button instead of a <select> (which changed — and blocked a customer — on arrow keys).
+ * Nothing happens until a menu item is clicked, and Block / Delete still ask first.
+ */
+function ActionsMenu({
+  row,
+  onOpen,
+  onEmail,
+  onConfirm,
+  onUpdated,
+}: {
+  row: Subscriber;
+  onOpen: () => void;
+  onEmail: () => void;
+  onConfirm: (c: Confirm) => void;
+  onUpdated: (row: Subscriber) => void;
+}): ReactElement {
+  const toast = useToast();
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  const blocked = isBlocked(row);
+  const pick = (fn: () => void) => () => {
+    setAnchor(null);
+    fn();
+  };
+  const unblock = async () => {
+    try {
+      onUpdated(await unblockSubscriber(row.id));
+      toast(`${row.email} can sign in again.`);
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Couldn't do that.", "bad");
+    }
+  };
   return (
-    <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="5" width="18" height="14" rx="2" />
-      <path d="m3.5 6.5 8.5 6.5 8.5-6.5" />
-    </svg>
+    <>
+      <button
+        type="button"
+        className={"btn btn--ghost btn--sm actions-btn" + (blocked ? " is-bad" : "")}
+        aria-haspopup="true"
+        aria-expanded={anchor !== null}
+        aria-label={`Actions for ${row.email}`}
+        onClick={(e) => setAnchor(anchor ? null : e.currentTarget)}
+      >
+        {blocked ? "Blocked" : "Actions"} <ChevronIcon />
+      </button>
+      {anchor ? (
+        <Popover anchor={anchor} title={`Actions for ${row.email}`} width={220} onClose={() => setAnchor(null)}>
+          <div className="menu">
+            <button type="button" className="menu__item" onClick={pick(onOpen)}>
+              Open details
+            </button>
+            <button type="button" className="menu__item" onClick={pick(onEmail)}>
+              Send email
+            </button>
+            {blocked ? (
+              <button type="button" className="menu__item" onClick={pick(() => void unblock())}>
+                Unblock
+              </button>
+            ) : row.is_active ? (
+              <button type="button" className="menu__item" onClick={pick(() => onConfirm({ kind: "block" }))}>
+                Block…
+              </button>
+            ) : null}
+            <button type="button" className="menu__item menu__item--danger" onClick={pick(() => onConfirm({ kind: "delete" }))}>
+              Delete…
+            </button>
+          </div>
+        </Popover>
+      ) : null}
+    </>
   );
 }
 
-function NoteIcon(): ReactElement {
-  return (
-    <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4z" />
-      <path d="m13.5 6.5 4 4" />
-    </svg>
-  );
-}
+/** Unsaved remark text per customer, kept when the popover closes (J8-17), until saved or discarded. */
+const remarkDrafts = new Map<number, string>();
 
-function KeyIcon(): ReactElement {
-  return (
-    <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="8" cy="15" r="4" />
-      <path d="m11 12 9-9M17 6l3 3M14 9l2 2" />
-    </svg>
-  );
-}
-
-/** Remark: the note itself is the button; editing happens in a small popover next to it. */
+/** Internal note: the note itself is the button; editing happens in a small popover next to it. */
 function RemarkCell({ row, onUpdated }: { row: Subscriber; onUpdated: (row: Subscriber) => void }): ReactElement {
   const toast = useToast();
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
+  const [, setDraftVersion] = useState(0);
   const saved = row.remark?.text ?? "";
+  const draft = remarkDrafts.get(row.id);
 
   const open = (el: HTMLElement) => {
-    setText(saved);
+    setText(remarkDrafts.get(row.id) ?? saved);
     setAnchor(el);
+  };
+
+  const close = () => {
+    if (text.trim() !== saved.trim()) remarkDrafts.set(row.id, text);
+    else remarkDrafts.delete(row.id);
+    setDraftVersion((v) => v + 1);
+    setAnchor(null);
   };
 
   const save = async (value: string) => {
     setBusy(true);
     try {
       onUpdated(await setRemark(row.id, value));
-      toast(value.trim() ? "Remark saved." : "Remark removed.");
+      remarkDrafts.delete(row.id);
+      toast(value.trim() ? "Note saved." : "Note removed.");
       setAnchor(null);
     } catch (err) {
-      toast(err instanceof Error ? err.message : "Couldn't save the remark.", "bad");
+      toast(err instanceof Error ? err.message : "Couldn't save the note.", "bad");
     } finally {
       setBusy(false);
     }
+  };
+
+  const discard = () => {
+    remarkDrafts.delete(row.id);
+    setText(saved);
+    setDraftVersion((v) => v + 1);
   };
 
   return (
@@ -436,8 +534,8 @@ function RemarkCell({ row, onUpdated }: { row: Subscriber; onUpdated: (row: Subs
         <button
           type="button"
           className="remark-chip"
-          title="Edit remark"
-          aria-label={`Edit remark: ${row.remark.text}`}
+          title="Edit internal note"
+          aria-label={`Edit internal note: ${row.remark.text}`}
           onClick={(e) => open(e.currentTarget)}
         >
           <span className="remark-chip__text">{row.remark.text}</span>
@@ -445,12 +543,13 @@ function RemarkCell({ row, onUpdated }: { row: Subscriber; onUpdated: (row: Subs
       ) : (
         <button type="button" className="add-btn" onClick={(e) => open(e.currentTarget)}>
           <NoteIcon />
-          Add remark
+          Add note
         </button>
       )}
+      {draft !== undefined && !anchor ? <small className="remark-draft">Unsaved draft</small> : null}
 
       {anchor ? (
-        <Popover anchor={anchor} title="Remark" onClose={() => setAnchor(null)}>
+        <Popover anchor={anchor} title="Internal note" onClose={close}>
           <textarea
             className="pop__textarea"
             rows={4}
@@ -464,7 +563,9 @@ function RemarkCell({ row, onUpdated }: { row: Subscriber; onUpdated: (row: Subs
             autoFocus
           />
           <div className="pop__meta">
-            <span>Only your team sees this</span>
+            <span>
+              <LockIcon /> Only your team sees this · Ctrl+Enter to save
+            </span>
             <span>{text.length}/2000</span>
           </div>
           {row.remark ? (
@@ -479,14 +580,19 @@ function RemarkCell({ row, onUpdated }: { row: Subscriber; onUpdated: (row: Subs
                 Remove
               </button>
             ) : null}
-            <button type="button" className="btn btn--ghost btn--sm" disabled={busy} onClick={() => setAnchor(null)}>
-              Cancel
-            </button>
+            {text.trim() !== saved.trim() ? (
+              <button type="button" className="btn btn--ghost btn--sm" disabled={busy} onClick={discard}>
+                Discard changes
+              </button>
+            ) : (
+              <button type="button" className="btn btn--ghost btn--sm" disabled={busy} onClick={close}>
+                Close
+              </button>
+            )}
             <button
               type="button"
               className="btn btn--primary btn--sm"
               disabled={busy || text.trim() === saved}
-              title="Ctrl + Enter"
               onClick={() => void save(text)}
             >
               {busy ? "Saving…" : "Save"}
@@ -496,19 +602,6 @@ function RemarkCell({ row, onUpdated }: { row: Subscriber; onUpdated: (row: Subs
       ) : null}
     </>
   );
-}
-
-/** A random 14-character password with upper, lower, digit and symbol (no look-alike characters). */
-function generatePassword(): string {
-  const sets = ["ABCDEFGHJKLMNPQRSTUVWXYZ", "abcdefghijkmnpqrstuvwxyz", "23456789", "!@#$%*?-"];
-  const all = sets.join("");
-  const pick = (s: string) => s[crypto.getRandomValues(new Uint32Array(1))[0] % s.length];
-  const chars = [...sets.map(pick), ...Array.from({ length: 10 }, () => pick(all))];
-  for (let i = chars.length - 1; i > 0; i--) {
-    const j = crypto.getRandomValues(new Uint32Array(1))[0] % (i + 1);
-    [chars[i], chars[j]] = [chars[j], chars[i]];
-  }
-  return chars.join("");
 }
 
 // --- Customer modal: everything about one customer, with every action ---------------------
@@ -541,28 +634,42 @@ function SubscriberModal({
   const [reason, setReason] = useState("");
   const [resetting, setResetting] = useState(false);
   const [confirm, setConfirm] = useState<Confirm>(null);
-  const emails = useCustomerEmails(row.id, emailsVersion);
+  const [check, setCheck] = useState<ReceiptCheck>(EMPTY_CHECK);
+  const [approving, setApproving] = useState(false);
+  const [localEmails, setLocalEmails] = useState(0); // emails this window caused (approve / reject), to refresh the tab
+  const emails = useCustomerEmails(row.id, emailsVersion + localEmails);
 
   const sub = row.subscription;
   const pay = row.payment;
   const waiting = pay?.status === "submitted" ? pay : null;
+  const blocked = isBlocked(row);
+  const ready = checkReady(check);
 
-  const review = async (approve: boolean) => {
+  const approve = async () => {
+    if (!waiting) return;
+    await approvePayment(waiting.id, check.reference.trim(), check.amount.replace(/[₹$,\s]/g, ""));
+    const fresh = await getSubscriber(row.id);
+    onUpdated(fresh);
+    setCheck(EMPTY_CHECK);
+    setLocalEmails((n) => n + 1);
+    refreshBadges();
+    setDone(
+      `Approved. ${fresh.plan?.name ?? "The plan"} ${waiting.is_renewal ? "now runs" : "is active"}${fresh.subscription?.ends_at ? ` until ${date(fresh.subscription.ends_at)}` : ""}, and the customer was emailed.`,
+    );
+  };
+
+  const reject = async () => {
     if (!waiting) return;
     setBusy(true);
     setError(null);
     try {
-      if (approve) await approvePayment(waiting.id);
-      else await rejectPayment(waiting.id, reason.trim());
-      const fresh = await getSubscriber(row.id);
-      onUpdated(fresh);
+      await rejectPayment(waiting.id, reason.trim());
+      onUpdated(await getSubscriber(row.id));
       setRejecting(false);
       setReason("");
-      setDone(
-        approve
-          ? `Approved. ${fresh.plan?.name ?? "The plan"} ${waiting.is_renewal ? "now runs" : "is active"}${fresh.subscription?.ends_at ? ` until ${date(fresh.subscription.ends_at)}` : ""}, and the customer was emailed.`
-          : "Payment rejected. The customer sees your reason and can send a new payment.",
-      );
+      setLocalEmails((n) => n + 1);
+      refreshBadges();
+      setDone("Payment rejected. The customer sees your reason and can send a new payment.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't do that.");
     } finally {
@@ -570,11 +677,11 @@ function SubscriberModal({
     }
   };
 
-  const toggleBlock = async () => {
+  const unblock = async () => {
     setBusy(true);
     try {
-      onUpdated(await (row.is_active ? blockSubscriber(row.id) : unblockSubscriber(row.id)));
-      toast(row.is_active ? `${row.email} is blocked and signed out.` : `${row.email} can sign in again.`);
+      onUpdated(await unblockSubscriber(row.id));
+      toast(`${row.email} can sign in again.`);
     } catch (err) {
       toast(err instanceof Error ? err.message : "Couldn't do that.", "bad");
     } finally {
@@ -584,40 +691,33 @@ function SubscriberModal({
 
   const footer = waiting ? (
     rejecting ? (
-      <form
-        className="modal-reject"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void review(false);
-        }}
-      >
-        <input
-          type="text"
-          placeholder="Reason the customer will see, e.g. No payment found for this UTR"
-          aria-label="Reason for rejecting"
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-          autoFocus
-        />
-        <button type="button" className="btn btn--ghost" disabled={busy} onClick={() => setRejecting(false)}>
-          Back
-        </button>
-        <button type="submit" className="btn btn--danger" disabled={busy || !reason.trim()}>
-          {busy ? "Rejecting…" : "Reject payment"}
-        </button>
-      </form>
+      <RejectForm
+        reason={reason}
+        busy={busy}
+        onReason={setReason}
+        onBack={() => setRejecting(false)}
+        onSubmit={() => void reject()}
+      />
     ) : (
       <>
-        <span className="modal__hint">Check the amount and reference against your bank or PayPal first.</span>
+        <span className="modal__hint">
+          {ready
+            ? "Matches your bank statement, UPI app or Skydo? Then approve."
+            : "Check the receipt against your bank statement, UPI app or Skydo, then type its amount and UTR above."}
+        </span>
         <button type="button" className="btn btn--ghost" disabled={busy} onClick={() => setRejecting(true)}>
           Reject
         </button>
-        <button type="button" className="btn btn--primary" disabled={busy} onClick={() => void review(true)}>
-          {busy
-            ? "Approving…"
-            : waiting.is_renewal && waiting.would_cover
-              ? `Approve & extend to ${date(waiting.would_cover.until)}`
-              : `Approve & activate ${waiting.plan.name}`}
+        <button
+          type="button"
+          className="btn btn--primary"
+          disabled={busy || !ready}
+          title={ready ? undefined : "Type the amount and UTR from the receipt first"}
+          onClick={() => setApproving(true)}
+        >
+          {waiting.is_renewal && waiting.would_cover
+            ? `Approve & extend to ${date(waiting.would_cover.until)}`
+            : `Approve & activate ${waiting.plan.name}`}
         </button>
       </>
     )
@@ -631,7 +731,7 @@ function SubscriberModal({
     { key: "overview", label: "Overview" },
     { key: "payments", label: "Payments", count: row.payments.length },
     { key: "team", label: "Team", count: row.team.members.length },
-    { key: "emails", label: "Emails", count: emails?.length },
+    { key: "emails", label: "Emails", count: emails?.length ?? row.emails.total },
   ];
 
   return (
@@ -641,8 +741,10 @@ function SubscriberModal({
         <>
           {row.email}
           {row.company ? ` · ${row.company.name}` : ""}
-          {!row.is_active ? (
+          {blocked ? (
             <span className="pill pill--bad">Blocked</span>
+          ) : !row.is_active ? (
+            <span className="pill pill--muted">Sign-up not finished</span>
           ) : sub ? (
             <span className={"pill pill--" + statusTone(sub.status)}>{STATUS_LABEL[sub.status] ?? sub.status}</span>
           ) : null}
@@ -689,16 +791,38 @@ function SubscriberModal({
           </select>
         </label>
         <span className="cust-actions__spacer" />
-        <button type="button" className={"icon-btn" + (row.is_active ? "" : " is-good")} disabled={busy} onClick={() => void toggleBlock()}>
-          {row.is_active ? <BlockIcon /> : <CheckIcon />}
-          {row.is_active ? "Block" : "Unblock"}
-        </button>
+        {blocked ? (
+          <button type="button" className="icon-btn is-good" disabled={busy} onClick={() => void unblock()}>
+            <CheckIcon />
+            Unblock
+          </button>
+        ) : row.is_active ? (
+          <button type="button" className="icon-btn" disabled={busy} onClick={() => setConfirm({ kind: "block" })}>
+            <BlockIcon />
+            Block…
+          </button>
+        ) : null}
         <button type="button" className="icon-btn icon-btn--danger" onClick={() => setConfirm({ kind: "delete" })}>
           <TrashIcon />
-          Delete
+          Delete…
         </button>
       </div>
 
+      {blocked ? (
+        <p className="alert alert--bad" role="status">
+          <b>Blocked</b>
+          {row.blocked ? (
+            <>
+              {" "}
+              {dateTime(row.blocked.at)}
+              {row.blocked.by ? ` by ${row.blocked.by}` : ""}: {row.blocked.reason}
+              {row.blocked.emailed ? " (the customer was emailed)" : " (not emailed)"}
+            </>
+          ) : (
+            " — they can't sign in."
+          )}
+        </p>
+      ) : null}
       {done ? (
         <p className="alert alert--good" role="status">
           {done}
@@ -730,22 +854,7 @@ function SubscriberModal({
         <>
           {resetting ? <PasswordReset row={row} onUpdated={onUpdated} onDone={() => setResetting(false)} /> : null}
           <PlanSummary row={row} />
-          {waiting ? (
-            <section className="msec msec--hot" aria-label="Payment waiting for approval">
-              <h3 className="msec__title">
-                {waiting.is_renewal ? "Renewal payment waiting for approval" : "Payment waiting for approval"}
-                <span className="pill pill--info">
-                  {waiting.cycle && waiting.cycle > 1 ? `Cycle ${waiting.cycle} · renewal` : "Cycle 1 · first payment"}
-                </span>
-              </h3>
-              <div className="review">
-                <PaymentFacts payment={waiting} customerName={row.full_name} />
-                <div className="review__proof">
-                  <PaymentProof paymentId={waiting.id} hasProof={waiting.has_proof} />
-                </div>
-              </div>
-            </section>
-          ) : null}
+          {waiting ? <PaymentReview payment={waiting} row={row} check={check} onCheck={setCheck} /> : null}
           <AccountDetails row={row} />
           <RemarkEditor row={row} onUpdated={onUpdated} />
         </>
@@ -765,15 +874,27 @@ function SubscriberModal({
 
       {tab === "emails" ? <SentEmails emails={emails} /> : null}
 
-      <ConfirmFor
+      {approving && waiting ? (
+        <ApproveConfirm
+          payment={waiting}
+          row={row}
+          check={check}
+          onConfirm={approve}
+          onClose={() => setApproving(false)}
+        />
+      ) : null}
+
+      <CustomerConfirm
         confirm={confirm}
         row={row}
+        plans={plans}
         onUpdated={onUpdated}
         onDeleted={(id) => {
           onDeleted(id);
           onClose();
         }}
         onClose={() => setConfirm(null)}
+        onBlockInstead={() => setConfirm({ kind: "block" })}
       />
     </Modal>
   );
@@ -837,7 +958,8 @@ function TeamList({ row }: { row: Subscriber }): ReactElement {
   if (!members.length) {
     return (
       <p className="muted msec__empty">
-        No team members yet. The customer adds them from Team in their dashboard; each gets a code for their PC.
+        No team members yet. The customer adds them in Team &amp; devices on their dashboard; each gets a Member ID for
+        their PC.
       </p>
     );
   }
@@ -867,170 +989,6 @@ function TeamList({ row }: { row: Subscriber }): ReactElement {
         </li>
       ))}
     </ul>
-  );
-}
-
-/** Set a new password (never readable: stored hashed). Generate + Copy, then save. */
-function PasswordReset({
-  row,
-  onUpdated,
-  onDone,
-}: {
-  row: Subscriber;
-  onUpdated: (row: Subscriber) => void;
-  onDone: () => void;
-}): ReactElement {
-  const toast = useToast();
-  const [value, setValue] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [copied, setCopied] = useState(false);
-
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1500);
-    } catch {
-      toast("Couldn't copy; select the password and copy it.", "bad");
-    }
-  };
-
-  const save = async () => {
-    setBusy(true);
-    try {
-      onUpdated(await setPassword(row.id, value));
-      toast(`New password saved; ${row.email} was signed out everywhere.`);
-      onDone();
-    } catch (err) {
-      toast(err instanceof Error ? err.message : "Couldn't set the password.", "bad");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <section className="msec pw-reset" aria-label="Reset password">
-      <h3 className="msec__title">
-        Reset password <span className="msec__aside">Passwords are stored encrypted and can't be shown</span>
-      </h3>
-      <div className="pw-reset__row">
-        <input
-          className="pop__input mono"
-          type="text"
-          autoComplete="new-password"
-          spellCheck={false}
-          placeholder="New password, at least 8 characters"
-          aria-label={`New password for ${row.email}`}
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && value.length >= 8) void save();
-          }}
-          autoFocus
-        />
-        <button type="button" className="btn btn--ghost btn--sm" onClick={() => setValue(generatePassword())}>
-          Generate
-        </button>
-        {value ? (
-          <button type="button" className="btn btn--ghost btn--sm" onClick={() => void copy()}>
-            {copied ? "Copied" : "Copy"}
-          </button>
-        ) : null}
-        <button type="button" className="btn btn--primary btn--sm" disabled={busy || value.length < 8} onClick={() => void save()}>
-          {busy ? "Saving…" : "Save password"}
-        </button>
-      </div>
-      <p className="pop__hint">They're signed out of every device. Share the new password privately.</p>
-    </section>
-  );
-}
-
-/** Plan-change and delete confirmations, shared by the table row and the customer modal. */
-function ConfirmFor({
-  confirm,
-  row,
-  onUpdated,
-  onDeleted,
-  onClose,
-}: {
-  confirm: Confirm;
-  row: Subscriber;
-  onUpdated: (row: Subscriber) => void;
-  onDeleted: (id: number) => void;
-  onClose: () => void;
-}): ReactElement | null {
-  const toast = useToast();
-  if (confirm?.kind === "plan") {
-    return (
-      <ConfirmDialog
-        title={`Switch to ${confirm.plan.name}?`}
-        confirmLabel={`Switch to ${confirm.plan.name}`}
-        onClose={onClose}
-        onConfirm={async () => {
-          onUpdated(await changePlan(row.id, confirm.plan.code));
-          toast(`${row.email} is now on ${confirm.plan.name}.`);
-        }}
-      >
-        <p>
-          <b>{row.full_name || row.email}</b> moves from <b>{row.plan?.name ?? "no plan"}</b> to{" "}
-          <b>{confirm.plan.name}</b> ({confirm.plan.max_devices} PCs) right away.
-        </p>
-        {Number(confirm.plan.price_inr_monthly) > 0 ? (
-          <p className="confirm__note">
-            This grants {confirm.plan.name} for one month <b>without a payment</b>. To charge for it, let the customer
-            choose it and approve their payment instead.
-          </p>
-        ) : null}
-      </ConfirmDialog>
-    );
-  }
-  if (confirm?.kind === "delete") {
-    return (
-      <ConfirmDialog
-        title="Delete this account?"
-        confirmLabel="Delete account"
-        danger
-        confirmText={row.email}
-        onClose={onClose}
-        onConfirm={async () => {
-          await deleteSubscriber(row.id);
-          onDeleted(row.id);
-          toast(`${row.email} was deleted.`);
-        }}
-      >
-        <p>
-          This permanently removes <b>{row.email}</b> with their company, subscriptions, payment records, devices and
-          feedback. It can't be undone.
-        </p>
-        <p className="confirm__note">Blocking is usually enough: it stops sign-in and keeps the history.</p>
-      </ConfirmDialog>
-    );
-  }
-  return null;
-}
-
-function BlockIcon(): ReactElement {
-  return (
-    <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-      <circle cx="12" cy="12" r="8.5" />
-      <path d="m6 6 12 12" />
-    </svg>
-  );
-}
-
-function CheckIcon(): ReactElement {
-  return (
-    <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="m5 12.5 4.5 4.5L19 7.5" />
-    </svg>
-  );
-}
-
-function TrashIcon(): ReactElement {
-  return (
-    <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3" />
-    </svg>
   );
 }
 
@@ -1083,50 +1041,6 @@ function PlanSummary({ row }: { row: Subscriber }): ReactElement {
   );
 }
 
-/** The payment being reviewed. Each fact appears once; the payer only when it isn't the customer. */
-function PaymentFacts({ payment, customerName }: { payment: Payment; customerName: string }): ReactElement {
-  const mismatch = Number(payment.amount_inr) !== Number(payment.expected_inr);
-  const otherPayer =
-    payment.payer_name && payment.payer_name.trim().toLowerCase() !== customerName.trim().toLowerCase();
-  return (
-    <dl className="facts">
-      <Fact
-        label="Amount"
-        value={
-          <span className={mismatch ? "is-warn" : ""}>
-            {inr(payment.amount_inr)}
-            {mismatch ? <small className="block">Plan price is {inr(payment.expected_inr)}</small> : null}
-          </span>
-        }
-      />
-      <Fact
-        label={`${methodLabel(payment.method)} reference`}
-        value={<span className="mono">{payment.reference}</span>}
-      />
-      <Fact
-        label="Paid on"
-        value={
-          <>
-            {date(payment.paid_on)}
-            <small className="block muted">reported {dateTime(payment.submitted_at)}</small>
-          </>
-        }
-      />
-      {payment.would_cover ? (
-        <Fact
-          label={payment.is_renewal ? "Extends plan" : "Activates plan"}
-          value={
-            <span className="period">
-              {date(payment.would_cover.from)} → {date(payment.would_cover.until)}
-            </span>
-          }
-        />
-      ) : null}
-      {otherPayer ? <Fact label="Paid by" value={payment.payer_name} /> : null}
-    </dl>
-  );
-}
-
 function PaymentHistory({ payments }: { payments: Payment[] }): ReactElement {
   const manyPlans = new Set(payments.map((p) => p.plan.code)).size > 1;
   return (
@@ -1151,9 +1065,25 @@ function PaymentHistory({ payments }: { payments: Payment[] }): ReactElement {
               <span className={"tag" + (p.is_renewal ? " tag--renew" : "")}>{p.is_renewal ? "Renewal" : "New"}</span>
             </td>
             {manyPlans ? <td>{p.plan.name}</td> : null}
-            <td>{inr(p.amount_inr)}</td>
             <td>
-              {methodLabel(p.method)} · <span className="mono">{p.reference}</span>
+              {money(p.due_total ?? p.amount_inr, p.currency ?? "INR")}
+              {p.staff_amount && Math.abs(Number(p.staff_amount) - Number(p.due_total ?? p.amount_inr)) > 0.005 ? (
+                <small className="block tone-warn">receipt {money(p.staff_amount, p.currency ?? "INR")}</small>
+              ) : null}
+            </td>
+            <td>
+              {methodLabel(p.method)}
+              {p.staff_reference || p.reference ? (
+                <>
+                  {" · "}
+                  <span className="mono">{p.staff_reference || p.reference}</span>
+                </>
+              ) : null}
+              {p.duplicate_of ? (
+                <small className="block tone-warn">
+                  Same {p.duplicate_of.match === "receipt" ? "receipt" : "reference"} as #{p.duplicate_of.id}
+                </small>
+              ) : null}
               {p.terms_accepted_at ? (
                 <small className="block muted">Payment terms accepted {date(p.terms_accepted_at)}</small>
               ) : null}
@@ -1179,6 +1109,7 @@ function PaymentHistory({ payments }: { payments: Payment[] }): ReactElement {
                   {p.reviewed_by ? ` · ${p.reviewed_by}` : ""}
                 </small>
               ) : null}
+              {p.invoice_number ? <small className="muted block">Invoice {p.invoice_number}</small> : null}
             </td>
           </tr>
         ))}
@@ -1193,18 +1124,25 @@ function statusTone(status: string): string {
   return "muted";
 }
 
-// --- Remark, sent emails, composer ---------------------------------------------------
+// --- Internal note, sent emails, composer ---------------------------------------------------
 
-/** The team's internal note on a customer. Saved explicitly; never shown to the customer. */
+/**
+ * The team's internal note on a customer. Saved explicitly; never shown to the customer. Set apart from
+ * the customer-facing payment reason (j3: a reason typed here by mistake would never reach the customer).
+ */
 function RemarkEditor({ row, onUpdated }: { row: Subscriber; onUpdated: (row: Subscriber) => void }): ReactElement {
   const saved = row.remark?.text ?? "";
   const [text, setText] = useState(saved);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [justSaved, setJustSaved] = useState(false);
+  const savedRef = useRef(saved);
 
   useEffect(() => {
-    setText(saved);
+    if (savedRef.current !== saved) {
+      savedRef.current = saved;
+      setText(saved);
+    }
   }, [saved]);
 
   const save = async () => {
@@ -1215,7 +1153,7 @@ function RemarkEditor({ row, onUpdated }: { row: Subscriber; onUpdated: (row: Su
       setJustSaved(true);
       window.setTimeout(() => setJustSaved(false), 2500);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't save the remark.");
+      setError(err instanceof Error ? err.message : "Couldn't save the note.");
     } finally {
       setBusy(false);
     }
@@ -1223,9 +1161,9 @@ function RemarkEditor({ row, onUpdated }: { row: Subscriber; onUpdated: (row: Su
 
   const dirty = text.trim() !== saved;
   return (
-    <section className="msec" aria-label="Remark">
-      <h3 className="msec__title">
-        Remark
+    <section className="msec note-box" aria-labelledby={`note-${row.id}`}>
+      <h3 className="msec__title" id={`note-${row.id}`}>
+        <LockIcon /> Internal note <span className="note-box__who">(the customer doesn't see this)</span>
         <span className="msec__aside">
           {justSaved
             ? "Saved"
@@ -1239,17 +1177,21 @@ function RemarkEditor({ row, onUpdated }: { row: Subscriber; onUpdated: (row: Su
         rows={1}
         maxLength={2000}
         placeholder="e.g. Called on 11 Oct, wants a demo for 20 PCs"
-        aria-label={`Remark about ${row.email}`}
+        aria-label={`Internal note about ${row.email} (the customer doesn't see this)`}
         value={text}
         onChange={(e) => setText(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && dirty) void save();
+        }}
       />
       {dirty || busy ? (
         <div className="remark-bar">
+          <span className="muted">Ctrl+Enter to save</span>
           <button type="button" className="btn btn--ghost btn--sm" disabled={busy} onClick={() => setText(saved)}>
             Undo
           </button>
           <button type="button" className="btn btn--primary btn--sm" disabled={busy} onClick={() => void save()}>
-            {busy ? "Saving…" : "Save remark"}
+            {busy ? "Saving…" : "Save note"}
           </button>
         </div>
       ) : null}
@@ -1258,7 +1200,7 @@ function RemarkEditor({ row, onUpdated }: { row: Subscriber; onUpdated: (row: Su
   );
 }
 
-/** Emails to this customer the team should see (custom + automatic), newest first; reloads on `version`. */
+/** Every email Zinwe sent this customer (automatic and the team's), newest first; reloads on `version`. */
 function useCustomerEmails(customerId: number, version: number): SentEmail[] | null {
   const [emails, setEmails] = useState<SentEmail[] | null>(null);
   useEffect(() => {
@@ -1277,30 +1219,55 @@ function useCustomerEmails(customerId: number, version: number): SentEmail[] | n
   return emails;
 }
 
+/** Plain names for the automatic emails, so staff know what the customer already got. */
+const EMAIL_KIND: Record<string, string> = {
+  otp_signup: "Sign-up code",
+  otp_login: "Sign-in code",
+  otp_password_reset: "Password reset code",
+  welcome: "Welcome",
+  payment_received: "Receipt received",
+  payment_rejected: "Payment not accepted",
+  subscription_active: "Plan active",
+  renewal_reminder: "Renewal reminder",
+  plan_expired: "Plan ended",
+  quote_sent: "Quote",
+  support_reply: "Support reply",
+  feedback_request: "Feedback request",
+  account_suspended: "Account paused",
+  plan_changed_by_staff: "Plan changed",
+  newsletter_confirm: "Newsletter",
+  newsletter_issue: "Newsletter",
+};
+
 /** Click an email to read it. */
 function SentEmails({ emails }: { emails: SentEmail[] | null }): ReactElement {
   if (emails === null) return <p className="muted msec__empty">Loading…</p>;
   if (!emails.length) return <p className="muted msec__empty">No emails sent to this customer yet.</p>;
   return (
-    <ul className="mail-list">
-      {emails.map((m) => (
-        <li key={m.id}>
-          <details>
-            <summary>
-              <span className="mail-list__subject">{m.subject}</span>
-              {m.automatic ? (
-                <span className="tag" title="Sent automatically by Zinwe">
-                  Automatic
-                </span>
-              ) : null}
-              <span className="muted">{dateTime(m.sent_at ?? m.created_at)}</span>
-              {m.status !== "sent" ? <span className="pill pill--bad">Not sent</span> : null}
-            </summary>
-            <pre className="mail-list__body">{m.body}</pre>
-          </details>
-        </li>
-      ))}
-    </ul>
+    <>
+      <p className="muted msec__empty">Every email Zinwe sent them, newest first. Codes are hidden.</p>
+      <ul className="mail-list">
+        {emails.map((m) => (
+          <li key={m.id}>
+            <details>
+              <summary>
+                <span className="mail-list__subject">{m.subject || EMAIL_KIND[m.template] || m.template}</span>
+                {m.automatic ? (
+                  <span className="tag" title="Sent automatically by Zinwe">
+                    {EMAIL_KIND[m.template] ?? "Automatic"}
+                  </span>
+                ) : (
+                  <span className="tag tag--renew">From the team</span>
+                )}
+                <span className="muted">{dateTime(m.sent_at ?? m.created_at)}</span>
+                {m.status !== "sent" ? <span className="pill pill--bad">Not sent</span> : null}
+              </summary>
+              <pre className="mail-list__body">{m.body}</pre>
+            </details>
+          </li>
+        ))}
+      </ul>
+    </>
   );
 }
 
@@ -1395,7 +1362,7 @@ function EmailComposer({
     >
       {sent ? (
         <p className="alert alert--good" role="status">
-          Email sent to {row.email}. It's listed under “Emails sent” on this customer.
+          Email sent to {row.email}. It's listed under Emails on this customer.
         </p>
       ) : (
         <div className="composer">

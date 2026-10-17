@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactElement } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useBlocker, useNavigate, useParams } from "react-router-dom";
 import {
   ARTICLE_TYPES,
   STATE_PILL,
@@ -17,6 +17,7 @@ import {
 } from "../lib/blogApi";
 import { dateTime } from "../lib/format";
 import { ConfirmDialog } from "../components/ConfirmDialog";
+import { Modal } from "../components/Modal";
 import { NewsletterCard } from "../components/NewsletterCard";
 import { RichTextEditor, type RichTextValue } from "../components/RichTextEditor";
 import { useToast } from "../components/Toast";
@@ -73,6 +74,8 @@ function nextHour(): Date {
   return d;
 }
 
+const AUTOSAVE_MS = 10_000;
+
 const countWords = (text: string) => (text.trim() ? text.trim().split(/\s+/).length : 0);
 
 /** Write, preview for search, and publish one article. /blog/new creates; /blog/:id edits. */
@@ -97,8 +100,14 @@ export function BlogEditorPage(): ReactElement {
   // The editor normalises loaded HTML on mount; take that first emit as the saved baseline.
   const bodyBaseline = useRef(true);
 
+  // The article on screen; a new one saved for the first time moves to /blog/<id> without reloading it
+  // (that would remount the editor under the cursor).
+  const loadedId = useRef<number | null>(null);
+
   useEffect(() => {
+    if (!isNew && loadedId.current === Number(id)) return;
     if (isNew) {
+      loadedId.current = null;
       setArticle(null);
       setForm(EMPTY);
       setSaved(EMPTY);
@@ -109,6 +118,7 @@ export function BlogEditorPage(): ReactElement {
     getArticle(Number(id))
       .then((a) => {
         if (!alive) return;
+        loadedId.current = a.id;
         setArticle(a);
         setForm(toForm(a));
         setSaved(toForm(a));
@@ -124,7 +134,7 @@ export function BlogEditorPage(): ReactElement {
 
   const dirty = useMemo(() => JSON.stringify(form) !== JSON.stringify(saved), [form, saved]);
 
-  // Warn before leaving the page with unsaved edits.
+  // Warn before leaving the page with unsaved edits: closing the tab (beforeunload) ...
   useEffect(() => {
     if (!dirty) return;
     const warn = (e: BeforeUnloadEvent) => {
@@ -133,6 +143,17 @@ export function BlogEditorPage(): ReactElement {
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
   }, [dirty]);
+
+  // ... and moving elsewhere in the back office (J8-07): "← All articles", the sidebar, Back. Saving a
+  // new article swaps /blog/new for /blog/<id>: that's the same article, so it never asks.
+  const leaving = useRef(false); // set right before an intended navigation (after delete)
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      dirty &&
+      !leaving.current &&
+      currentLocation.pathname !== nextLocation.pathname &&
+      !(currentLocation.pathname === "/blog/new" && /^\/blog\/\d+$/.test(nextLocation.pathname)),
+  );
 
   const set = <K extends keyof Form>(key: K, value: Form[K]) => setForm((f) => ({ ...f, [key]: value }));
   const slug = slugTouched ? form.slug : slugify(form.title);
@@ -151,22 +172,26 @@ export function BlogEditorPage(): ReactElement {
     author_name: form.author_name,
   });
 
-  const save = async (quiet = false): Promise<Article | null> => {
+  /** `openSaved`: a new article moves to its own URL once saved (not when saving on the way out). */
+  const save = async (quiet = false, openSaved = true): Promise<Article | null> => {
     if (!form.title.trim()) {
       toast("Give the article a title first.", "bad");
       return null;
     }
     setBusy("save");
+    const sent = form;
     try {
       const next = article ? await updateArticle(article.id, payload()) : await createArticle(payload());
+      loadedId.current = next.id;
       setArticle(next);
-      // Server-normalised fields (slug, tags) come back; the body stays as the editor holds it.
-      const nextForm = { ...toForm(next), body_html: form.body_html };
-      setForm(nextForm);
+      // Server-normalised fields (slug, tags) come back; the body stays as the editor holds it. Anything typed
+      // while it was saving (autosave) is kept: the form only takes the server copy if it didn't change meanwhile.
+      const nextForm = { ...toForm(next), body_html: sent.body_html };
+      setForm((f) => (f === sent ? nextForm : f));
       setSaved(nextForm);
       setSlugTouched(true);
       if (!quiet) toast(next.status === "published" ? "Saved. The live article is updated." : "Draft saved.");
-      if (!article) navigate(`/blog/${next.id}`, { replace: true });
+      if (!article && openSaved) navigate(`/blog/${next.id}`, { replace: true });
       return next;
     } catch (err) {
       toast(err instanceof Error ? err.message : "Couldn't save.", "bad");
@@ -175,6 +200,20 @@ export function BlogEditorPage(): ReactElement {
       setBusy(null);
     }
   };
+
+  // Autosave (J8-07): a draft with a title saves itself 10 seconds after the last change. Published and
+  // scheduled articles never autosave (that would change the live page); the leave guard covers them.
+  const saveRef = useRef(save);
+  useEffect(() => {
+    saveRef.current = save;
+  });
+  const draft = !article || article.state === "draft";
+  const canAutosave = dirty && draft && form.title.trim().length > 0 && busy === null;
+  useEffect(() => {
+    if (!canAutosave) return;
+    const timer = window.setTimeout(() => void saveRef.current(true), AUTOSAVE_MS);
+    return () => window.clearTimeout(timer);
+  }, [canAutosave, form]);
 
   /** Publish now (no `at`), or schedule for a future local date-time. */
   const publish = async (at?: Date) => {
@@ -277,13 +316,23 @@ export function BlogEditorPage(): ReactElement {
         <div className="editor__state">
           <span className={"pill " + STATE_PILL[state].tone}>{STATE_PILL[state].label}</span>
           <span className="muted">
-            {dirty ? "Unsaved changes" : article ? `Saved ${dateTime(article.updated_at)}` : "Not saved yet"}
+            {busy === "save"
+              ? "Saving…"
+              : dirty
+                ? draft && form.title.trim()
+                  ? "Unsaved changes · saves itself in a few seconds"
+                  : draft
+                    ? "Unsaved changes · add a title to save"
+                    : "Unsaved changes"
+                : article
+                  ? `Saved ${dateTime(article.updated_at)}`
+                  : "Not saved yet"}
           </span>
         </div>
       </header>
 
       <div className="editor__grid">
-        <main className="editor__main">
+        <div className="editor__main">
           <input
             className="editor__title"
             placeholder="Article title"
@@ -344,7 +393,7 @@ export function BlogEditorPage(): ReactElement {
               }}
             />
           </div>
-        </main>
+        </div>
 
         <aside className="editor__side">
           <section className="side-card">
@@ -533,7 +582,8 @@ export function BlogEditorPage(): ReactElement {
           onClose={() => setConfirmDelete(false)}
           onConfirm={async () => {
             await deleteArticle(article.id);
-            setSaved(form); // no unsaved-changes prompt on the way out
+            setSaved(form);
+            leaving.current = true; // no unsaved-changes prompt on the way out
             toast("Article deleted.");
             navigate("/blog", { replace: true });
           }}
@@ -543,6 +593,44 @@ export function BlogEditorPage(): ReactElement {
             might want it back.
           </p>
         </ConfirmDialog>
+      ) : null}
+
+      {blocker.state === "blocked" ? (
+        <Modal
+          title="Leave without saving?"
+          size="small"
+          onClose={() => blocker.reset()}
+          footer={
+            <>
+              <button type="button" className="btn btn--ghost" onClick={() => blocker.reset()}>
+                Stay here
+              </button>
+              <button type="button" className="btn btn--danger" onClick={() => blocker.proceed()}>
+                Discard changes
+              </button>
+              {form.title.trim() ? (
+                <button
+                  type="button"
+                  className="btn btn--primary"
+                  disabled={busy !== null}
+                  onClick={async () => {
+                    if (await save(true, false)) blocker.proceed();
+                    else blocker.reset();
+                  }}
+                >
+                  {busy === "save" ? "Saving…" : live ? "Update & leave" : "Save & leave"}
+                </button>
+              ) : null}
+            </>
+          }
+        >
+          <p>
+            {live
+              ? "Your edits to this live article aren't saved yet."
+              : "This article has changes that aren't saved yet."}{" "}
+            {form.title.trim() ? "" : "Give it a title to save it."}
+          </p>
+        </Modal>
       ) : null}
     </div>
   );

@@ -11,6 +11,7 @@ export function ConfirmDialog({
   confirmLabel,
   danger,
   confirmText,
+  disabled,
   onConfirm,
   onClose,
 }: {
@@ -19,13 +20,16 @@ export function ConfirmDialog({
   confirmLabel: string;
   danger?: boolean;
   confirmText?: string;
+  /** Keep the confirm button off (e.g. until a required reason is typed in the dialog). */
+  disabled?: boolean;
   onConfirm: () => Promise<void>;
   onClose: () => void;
 }): ReactElement {
   const [typed, setTyped] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const locked = confirmText !== undefined && typed.trim().toLowerCase() !== confirmText.toLowerCase();
+  const locked =
+    Boolean(disabled) || (confirmText !== undefined && typed.trim().toLowerCase() !== confirmText.toLowerCase());
 
   const go = async () => {
     setBusy(true);
