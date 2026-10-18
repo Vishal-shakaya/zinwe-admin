@@ -2,7 +2,8 @@ import { useEffect, useId, useRef, type ReactElement, type ReactNode } from "rea
 
 /**
  * Accessible modal on the native <dialog>: focus is trapped, Esc closes, the page behind is inert.
- * Clicking the dimmed backdrop also closes it.
+ * Clicking the dimmed backdrop does NOT close it (a stray click must never throw away a half-filled form):
+ * only the × button, Cancel (via `onClose`) or Esc do.
  */
 export function Modal({
   title,
@@ -40,9 +41,6 @@ export function Modal({
       onCancel={(e) => {
         e.preventDefault();
         onClose();
-      }}
-      onClick={(e) => {
-        if (e.target === ref.current) onClose(); // backdrop
       }}
     >
       <div className="modal__panel">
