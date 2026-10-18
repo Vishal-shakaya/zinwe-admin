@@ -3,12 +3,16 @@
  * ("/app/team" -> "Team & devices"). Feedback and support store the path; "modal:" means the pop-up form.
  */
 const DASHBOARD_PAGES: [string, string][] = [
-  ["/app/settings/billing", "Settings → Billing"],
-  ["/app/settings/company", "Settings → Company"],
-  ["/app/settings/password", "Settings → Password"],
+  ["/app/settings/billing", "Profile → Billing"],
+  ["/app/settings/company", "Profile → Company info"],
+  ["/app/settings/password", "Profile → Password"],
+  // Old Help tabs (feedback sent before 2026-10-18 still carries these paths).
   ["/app/help/feedback", "Help → Feedback"],
   ["/app/help/guide", "Help → Guide"],
   ["/app/help/policies", "Help → Policies"],
+  // Account menu (bottom of the sidebar) since 2026-10-18.
+  ["/app/help", "How to use"],
+  ["/app/policies", "Policies"],
   ["/app/internet", "Online protection"],
   ["/app/data", "Data safety"],
   ["/app/remote", "App monitoring"],
