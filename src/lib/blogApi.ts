@@ -214,6 +214,17 @@ export interface SeriesInput {
 }
 
 export const listSeries = () => call<Series[]>(`${BASE}/series/`);
+
+export interface SeriesStats {
+  episodes: { episode: number; title: string; slug: string; sent: number; readers: number; via_email: number; signups: number }[];
+  members: number;
+  referred: number;
+  signups: number;
+  signups_by_referral: number;
+  top_sharers: { email: string; referrals: number }[];
+}
+/** Per episode: emails sent, members who read it (from the email), Zinwe sign-ups that started from it. */
+export const getSeriesStats = (id: number) => call<SeriesStats>(`${BASE}/series/${id}/stats/`);
 export const createSeries = (input: SeriesInput) =>
   call<Series>(`${BASE}/series/`, { method: "POST", body: JSON.stringify(input) });
 export const updateSeries = (id: number, input: Partial<SeriesInput>) =>

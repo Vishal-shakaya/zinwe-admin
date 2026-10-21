@@ -3,12 +3,14 @@ import { Link } from "react-router-dom";
 import {
   createSeries,
   deleteSeries,
+  getSeriesStats,
   listSeries,
   updateSeries,
   uploadBlogImage,
   type BlogImageRef,
   type Series,
   type SeriesInput,
+  type SeriesStats,
 } from "../lib/blogApi";
 import { date } from "../lib/format";
 import { useLoad } from "../lib/useLoad";
@@ -60,6 +62,7 @@ export function BlogSeriesPage(): ReactElement {
   const toast = useToast();
   const [editing, setEditing] = useState<Series | "new" | null>(null);
   const [removing, setRemoving] = useState<Series | null>(null);
+  const [numbers, setNumbers] = useState<Series | null>(null);
 
   const toggle = async (s: Series) => {
     try {
@@ -141,6 +144,9 @@ export function BlogSeriesPage(): ReactElement {
                   <Link className="link-btn" to={`/blog/new?series=${s.id}`}>
                     New episode
                   </Link>
+                  <button type="button" className="link-btn" onClick={() => setNumbers(s)}>
+                    Numbers
+                  </button>
                   <button type="button" className="link-btn" onClick={() => void toggle(s)}>
                     {s.status === "published" ? "Hide" : "Make live"}
                   </button>
@@ -169,6 +175,8 @@ export function BlogSeriesPage(): ReactElement {
           }}
         />
       ) : null}
+
+      {numbers ? <SeriesNumbers series={numbers} onClose={() => setNumbers(null)} /> : null}
 
       {removing ? (
         <ConfirmDialog
@@ -390,6 +398,66 @@ function SeriesEditor({ series, onClose, onSaved }: { series: Series | null; onC
           ) : null}
         </div>
       </div>
+    </Modal>
+  );
+}
+
+/** The series as a growth loop: per episode, emails sent → members who read it → Zinwe sign-ups it started. */
+function SeriesNumbers({ series, onClose }: { series: Series; onClose: () => void }): ReactElement {
+  const load = useCallback(() => getSeriesStats(series.id), [series.id]);
+  const stats = useLoad<SeriesStats>(load);
+  const d = stats.data;
+  return (
+    <Modal title={`${series.title}: numbers`} subtitle="Members, reads and Zinwe sign-ups that started from the series" onClose={onClose}>
+      {stats.error ? (
+        <p className="alert alert--bad">{stats.error}</p>
+      ) : !d ? (
+        <p className="muted">Loading…</p>
+      ) : (
+        <>
+          <div className="series-kpis">
+            <div><b>{d.members}</b><span>members</span></div>
+            <div><b>{d.referred}</b><span>joined via a share link</span></div>
+            <div><b>{d.signups}</b><span>Zinwe sign-ups from the series</span></div>
+            <div><b>{d.signups_by_referral}</b><span>…of them via a share link</span></div>
+          </div>
+          <div className="table-card">
+            <table className="sheet">
+              <thead>
+                <tr>
+                  <th>Episode</th>
+                  <th className="num">Emails sent</th>
+                  <th className="num">Members read</th>
+                  <th className="num">…from the email</th>
+                  <th className="num">Zinwe sign-ups</th>
+                </tr>
+              </thead>
+              <tbody>
+                {d.episodes.map((e) => (
+                  <tr key={e.slug}>
+                    <td>
+                      <b>{String(e.episode).padStart(2, "0")}</b> {e.title}
+                    </td>
+                    <td className="num">{e.sent}</td>
+                    <td className="num">{e.readers}</td>
+                    <td className="num">{e.via_email}</td>
+                    <td className="num">{e.signups}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {d.top_sharers.length ? (
+            <p className="side-card__note">
+              Top sharers: {d.top_sharers.map((t) => `${t.email} (${t.referrals})`).join(", ")}
+            </p>
+          ) : null}
+          <p className="side-card__note">
+            Opens and clicks are in Brevo; visits and the members' gate are in Google Analytics / PostHog (events tlf_*, generate_lead,
+            share, file_download).
+          </p>
+        </>
+      )}
     </Modal>
   );
 }

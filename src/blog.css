@@ -296,3 +296,10 @@
 .day-pick input { margin: 0; accent-color: var(--orange); }
 .day-pick.is-on { border-color: var(--orange); background: #fff4ec; }
 .series-drip__hour { max-width: 160px; }
+
+.series-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 14px; }
+.series-kpis div { display: flex; flex-direction: column; gap: 2px; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); }
+.series-kpis b { font-size: 22px; }
+.series-kpis span { font-size: 12px; color: var(--mute); }
+.sheet .num { text-align: right; font-variant-numeric: tabular-nums; }
+@media (max-width: 640px) { .series-kpis { grid-template-columns: 1fr 1fr; } }
