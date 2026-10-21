@@ -64,6 +64,8 @@ export interface Article {
   /** Open to everyone in full (e.g. the pilot). */
   free_preview: boolean;
   attachments: Attachment[];
+  /** Series episodes: the subject of the drip email (the title if empty). */
+  newsletter_subject: string;
 }
 
 export interface Attachment {
@@ -98,6 +100,7 @@ export interface ArticleInput {
   episode?: number | null;
   teaser_html?: string;
   free_preview?: boolean;
+  newsletter_subject?: string;
 }
 
 async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -183,6 +186,12 @@ export interface Series {
   status: "draft" | "published";
   position: number;
   episode_count: number;
+  /** The series drip: every subscriber gets the episodes one a day on these weekdays (0 = Monday). */
+  drip_enabled: boolean;
+  drip_weekdays: number[];
+  drip_hour: number;
+  drip_schedule: string;
+  drip_stats: { readers: number; sent: number; failed: number; sent_today: number };
   created_at: string;
   updated_at: string;
 }
@@ -199,6 +208,9 @@ export interface SeriesInput {
   seasons?: Season[] | string;
   status?: "draft" | "published";
   position?: number;
+  drip_enabled?: boolean;
+  drip_weekdays?: number[];
+  drip_hour?: number;
 }
 
 export const listSeries = () => call<Series[]>(`${BASE}/series/`);
@@ -232,6 +244,8 @@ export interface NewsletterState {
   default_subject: string;
   /** Newsletter-type articles go out in full; other types as a teaser with a link. */
   full_article: boolean;
+  /** Series episodes go out through the series drip (each subscriber's own schedule), not as one email. */
+  series_drip: { enabled: boolean; schedule: string; subject: string; sent: number } | null;
   issue: NewsletterProgress | null;
 }
 

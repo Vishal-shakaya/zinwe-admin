@@ -286,3 +286,13 @@
 .series-form__row { display: grid; grid-template-columns: 1fr 2fr 1fr; gap: 12px; }
 .series-form .editor__field > input + .side-card__row { margin-top: 2px; }
 @media (max-width: 640px) { .series-form__row { grid-template-columns: 1fr; } }
+
+.series-card__drip { font-size: 12.5px; color: var(--mute); }
+.series-card__drip.is-on b { color: #0f7a4d; }
+.series-drip { display: flex; flex-direction: column; gap: 10px; margin: 0; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius-sm); }
+.series-drip legend { padding: 0 4px; font-size: 12.5px; font-weight: 600; color: var(--ink-2); }
+.series-drip__days { display: flex; flex-wrap: wrap; gap: 6px; }
+.day-pick { display: inline-flex; align-items: center; gap: 4px; padding: 5px 10px; border: 1px solid var(--line-strong, var(--line)); border-radius: 999px; font-size: 12.5px; cursor: pointer; }
+.day-pick input { margin: 0; accent-color: var(--orange); }
+.day-pick.is-on { border-color: var(--orange); background: #fff4ec; }
+.series-drip__hour { max-width: 160px; }

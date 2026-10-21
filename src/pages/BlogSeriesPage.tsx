@@ -31,17 +31,23 @@ interface Form {
   /** "1 | The Warning | Trust", one season a line. */
   seasons: string;
   position: string;
+  drip_enabled: boolean;
+  drip_weekdays: number[];
+  drip_hour: string;
 }
 
 const EMPTY: Form = {
   title: "", slug: "", tagline: "", description: "", cover: null, cover_alt: "", planned_episodes: "0",
-  cadence: "", seasons: "", position: "0",
+  cadence: "", seasons: "", position: "0", drip_enabled: false, drip_weekdays: [0, 1, 3, 4], drip_hour: "9",
 };
+
+const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 const toForm = (s: Series): Form => ({
   title: s.title, slug: s.slug, tagline: s.tagline, description: s.description, cover: s.cover, cover_alt: s.cover_alt,
   planned_episodes: String(s.planned_episodes), cadence: s.cadence, position: String(s.position),
   seasons: s.seasons.map((x) => [x.number, x.title, x.theme].filter((v) => v !== "").join(" | ")).join("\n"),
+  drip_enabled: s.drip_enabled, drip_weekdays: s.drip_weekdays, drip_hour: String(s.drip_hour),
 });
 
 /**
@@ -112,6 +118,19 @@ export function BlogSeriesPage(): ReactElement {
                   {s.episode_count} of {s.planned_episodes || "?"} episodes written · {s.seasons.length} seasons · updated {date(s.updated_at)}
                 </p>
                 <p className="mono series-card__url">/blog/series/{s.slug}</p>
+                <p className={"series-card__drip" + (s.drip_enabled ? " is-on" : "")}>
+                  {s.drip_enabled ? (
+                    <>
+                      <b>Emails on</b> · {s.drip_schedule} · {s.drip_stats.readers} readers · {s.drip_stats.sent} sent
+                      {s.drip_stats.sent_today ? ` (${s.drip_stats.sent_today} today)` : ""}
+                      {s.drip_stats.failed ? ` · ${s.drip_stats.failed} failed` : ""}
+                    </>
+                  ) : (
+                    <>
+                      <b>Emails off</b> · subscribers aren't emailed the episodes
+                    </>
+                  )}
+                </p>
                 <div className="side-card__row">
                   <button type="button" className="link-btn" onClick={() => setEditing(s)}>
                     Edit
@@ -197,6 +216,9 @@ function SeriesEditor({ series, onClose, onSaved }: { series: Series | null; onC
       cadence: form.cadence,
       seasons: form.seasons,
       position: Math.max(0, Number(form.position) || 0),
+      drip_enabled: form.drip_enabled,
+      drip_weekdays: form.drip_weekdays,
+      drip_hour: Math.min(23, Math.max(0, Number(form.drip_hour) || 0)),
     };
     try {
       if (series) await updateSeries(series.id, input);
@@ -288,6 +310,48 @@ function SeriesEditor({ series, onClose, onSaved }: { series: Series | null; onC
             placeholder={"1 | The Warning | Trust\n2 | The Invisible Risk | Uncertainty"}
           />
         </label>
+        <fieldset className="series-drip">
+          <legend>Email the episodes (the series drip)</legend>
+          <label className="check-row">
+            <input type="checkbox" checked={form.drip_enabled} onChange={(e) => set("drip_enabled", e.target.checked)} />
+            <span>
+              <b>Send every subscriber the episodes, one a day</b>{" "}
+              <small className="muted">from Episode 1 (sent the moment they confirm), in order, only episodes already live</small>
+            </span>
+          </label>
+          <div className="series-drip__days" role="group" aria-label="Send days">
+            {DAYS.map((d, i) => (
+              <label key={d} className={"day-pick" + (form.drip_weekdays.includes(i) ? " is-on" : "")}>
+                <input
+                  type="checkbox"
+                  checked={form.drip_weekdays.includes(i)}
+                  onChange={(e) =>
+                    set(
+                      "drip_weekdays",
+                      e.target.checked ? [...form.drip_weekdays, i].sort() : form.drip_weekdays.filter((x) => x !== i),
+                    )
+                  }
+                />
+                {d}
+              </label>
+            ))}
+          </div>
+          <label className="editor__field series-drip__hour">
+            <span>
+              From <small>the reader's local time</small>
+            </span>
+            <select value={form.drip_hour} onChange={(e) => set("drip_hour", e.target.value)}>
+              {Array.from({ length: 24 }, (_, h) => (
+                <option key={h} value={h}>
+                  {String(h).padStart(2, "0")}:00
+                </option>
+              ))}
+            </select>
+          </label>
+          <p className="side-card__note">
+            {form.drip_weekdays.length} emails a week. Turning this on emails every confirmed subscriber, starting with Episode 1.
+          </p>
+        </fieldset>
         <div className="editor__field">
           <span>
             Cover <small>wide artwork, 1920×1080 works best (the series page's backdrop)</small>

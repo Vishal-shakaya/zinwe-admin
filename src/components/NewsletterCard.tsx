@@ -84,6 +84,40 @@ export function NewsletterCard({ article, dirty }: { article: Article; dirty: bo
   const scheduled = article.state === "scheduled";
   const audience = state?.audience ?? 0;
 
+  const drip = state?.series_drip ?? null;
+  if (drip) {
+    return (
+      <section className="side-card">
+        <h3>
+          Newsletter
+          <Link to="/blog/subscribers" className="nl-audience" title="Confirmed subscribers">
+            {plural(audience, "subscriber")}
+          </Link>
+        </h3>
+        <p className="side-card__note">
+          {drip.enabled ? (
+            <>
+              <b>Series drip on.</b> Every subscriber gets the episodes in order from Episode 1, one a day: {drip.schedule}. New
+              subscribers get Episode 1 the moment they confirm.
+            </>
+          ) : (
+            <>
+              <b>Series drip off.</b> Turn it on in Blog → Series to email the episodes to subscribers.
+            </>
+          )}
+        </p>
+        <p className="side-card__note">
+          Subject: “<b>{drip.subject}</b>” · sent to {plural(drip.sent, "subscriber")} so far.
+        </p>
+        <div className="side-card__actions">
+          <button type="button" className="btn btn--ghost btn--sm" disabled={!!busy || dirty} onClick={() => void test()}>
+            {busy === "test" ? "Sending…" : "Send test to me"}
+          </button>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="side-card">
       <h3>

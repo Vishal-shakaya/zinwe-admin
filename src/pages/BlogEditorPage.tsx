@@ -47,12 +47,13 @@ interface Form {
   episode: string;
   teaser_html: string;
   free_preview: boolean;
+  newsletter_subject: string;
 }
 
 const EMPTY: Form = {
   title: "", slug: "", type: "tutorial", summary: "", body_html: "", cover: null, cover_alt: "",
   tags: "", seo_title: "", meta_description: "", author_name: "",
-  series: null, season: 1, episode: "", teaser_html: "", free_preview: false,
+  series: null, season: 1, episode: "", teaser_html: "", free_preview: false, newsletter_subject: "",
 };
 
 const toForm = (a: Article): Form => ({
@@ -60,7 +61,7 @@ const toForm = (a: Article): Form => ({
   cover_alt: a.cover_alt, tags: a.tags, seo_title: a.seo_title, meta_description: a.meta_description,
   author_name: a.author_name,
   series: a.series, season: a.season, episode: a.episode ? String(a.episode) : "", teaser_html: a.teaser_html,
-  free_preview: a.free_preview,
+  free_preview: a.free_preview, newsletter_subject: a.newsletter_subject,
 });
 
 /** Same rule as the server (Django slugify), so the URL preview is what you'll get. */
@@ -202,6 +203,7 @@ export function BlogEditorPage(): ReactElement {
     episode: form.series && form.episode ? Number(form.episode) : null,
     teaser_html: form.series ? form.teaser_html : "",
     free_preview: form.series ? form.free_preview : false,
+    newsletter_subject: form.series ? form.newsletter_subject : "",
   });
 
   /** `openSaved`: a new article moves to its own URL once saved (not when saving on the way out). */
@@ -588,6 +590,17 @@ export function BlogEditorPage(): ReactElement {
                     />
                   </label>
                 </div>
+                <label className="editor__field">
+                  <span>
+                    Email subject <small>the drip email; empty = the title</small>
+                  </span>
+                  <input
+                    value={form.newsletter_subject}
+                    maxLength={200}
+                    placeholder={form.title || "The file was correct. The recipient wasn't."}
+                    onChange={(e) => set("newsletter_subject", e.target.value)}
+                  />
+                </label>
                 <label className="check-row">
                   <input type="checkbox" checked={form.free_preview} onChange={(e) => set("free_preview", e.target.checked)} />
                   <span>
