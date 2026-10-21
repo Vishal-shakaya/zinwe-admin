@@ -53,6 +53,32 @@ export interface Article {
   published_at: string | null;
   created_at: string;
   updated_at: string;
+  /** A members-only series episode (null = an ordinary article). */
+  series: number | null;
+  series_title: string | null;
+  series_slug: string | null;
+  season: number;
+  episode: number | null;
+  /** The episode's public opening (everyone sees it; the body is for members). */
+  teaser_html: string;
+  /** Open to everyone in full (e.g. the pilot). */
+  free_preview: boolean;
+  attachments: Attachment[];
+}
+
+export interface Attachment {
+  id: number;
+  title: string;
+  filename: string;
+  content_type: string;
+  size: number;
+  /** Relative to the API origin; members-only episode files also need a reader key. */
+  url: string;
+}
+
+/** Where an article lives on the website. */
+export function articlePath(a: Pick<Article, "slug" | "series_slug">): string {
+  return a.series_slug ? `/blog/series/${a.series_slug}/${a.slug}` : `/blog/${a.slug}`;
 }
 
 export interface ArticleInput {
@@ -67,6 +93,11 @@ export interface ArticleInput {
   seo_title?: string;
   meta_description?: string;
   author_name?: string;
+  series?: number | null;
+  season?: number;
+  episode?: number | null;
+  teaser_html?: string;
+  free_preview?: boolean;
 }
 
 async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -118,6 +149,64 @@ export function uploadBlogImage(file: File): Promise<BlogImageRef> {
   form.append("file", file);
   return call<BlogImageRef>(`${BASE}/images/`, { method: "POST", body: form });
 }
+
+/** PDF / PNG / JPG / ZIP up to 9 MB -> the article with its files. */
+export function uploadAttachment(articleId: number, file: File, title: string): Promise<Article> {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("title", title);
+  return call<Article>(`${BASE}/articles/${articleId}/attachments/`, { method: "POST", body: form });
+}
+export const renameAttachment = (id: number, title: string) =>
+  call<Article>(`${BASE}/attachments/${id}/`, { method: "PATCH", body: JSON.stringify({ title }) });
+export const deleteAttachment = (id: number) => call<Article>(`${BASE}/attachments/${id}/`, { method: "DELETE" });
+
+// --- Series (members-only newsletter series) -------------------------------------
+
+export interface Season {
+  number: number;
+  title: string;
+  theme: string;
+}
+
+export interface Series {
+  id: number;
+  title: string;
+  slug: string;
+  tagline: string;
+  description: string;
+  cover: BlogImageRef | null;
+  cover_alt: string;
+  planned_episodes: number;
+  cadence: string;
+  seasons: Season[];
+  status: "draft" | "published";
+  position: number;
+  episode_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SeriesInput {
+  title: string;
+  slug?: string;
+  tagline?: string;
+  description?: string;
+  cover_image?: number | null;
+  cover_alt?: string;
+  planned_episodes?: number;
+  cadence?: string;
+  seasons?: Season[] | string;
+  status?: "draft" | "published";
+  position?: number;
+}
+
+export const listSeries = () => call<Series[]>(`${BASE}/series/`);
+export const createSeries = (input: SeriesInput) =>
+  call<Series>(`${BASE}/series/`, { method: "POST", body: JSON.stringify(input) });
+export const updateSeries = (id: number, input: Partial<SeriesInput>) =>
+  call<Series>(`${BASE}/series/${id}/`, { method: "PATCH", body: JSON.stringify(input) });
+export const deleteSeries = (id: number) => call<null>(`${BASE}/series/${id}/`, { method: "DELETE" });
 
 // --- Newsletter -------------------------------------------------------------------
 

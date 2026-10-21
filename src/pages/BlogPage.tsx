@@ -1,6 +1,14 @@
 import { useCallback, useMemo, useState, type ReactElement } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { ARTICLE_TYPES, STATE_PILL, listArticles, type Article, type ArticleState, type ArticleType } from "../lib/blogApi";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import {
+  ARTICLE_TYPES,
+  STATE_PILL,
+  articlePath,
+  listArticles,
+  type Article,
+  type ArticleState,
+  type ArticleType,
+} from "../lib/blogApi";
 import { date, dateTime } from "../lib/format";
 import { useLoad } from "../lib/useLoad";
 import { PageHeader } from "../components/PageHeader";
@@ -22,8 +30,12 @@ export function BlogPage(): ReactElement {
   const [status, setStatus] = useState<"all" | ArticleState>("all");
   const [type, setType] = useState<"all" | ArticleType>("all");
   const [query, setQuery] = useState("");
+  // ?series=<id> (from Blog → Series → Episodes): one series' episodes.
+  const [params, setParams] = useSearchParams();
+  const seriesId = Number(params.get("series")) || null;
 
-  const rows = list.data ?? [];
+  const all = list.data ?? [];
+  const rows = seriesId ? all.filter((a) => a.series === seriesId) : all;
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
     return rows.filter(
@@ -51,6 +63,9 @@ export function BlogPage(): ReactElement {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
+        <Link className="btn btn--ghost" to="/blog/series">
+          Series
+        </Link>
         <Link className="btn btn--ghost" to="/blog/subscribers">
           Subscribers
         </Link>
@@ -58,6 +73,15 @@ export function BlogPage(): ReactElement {
           New article
         </Link>
       </PageHeader>
+
+      {seriesId ? (
+        <p className="alert series-filter">
+          Showing the episodes of <b>{rows[0]?.series_title ?? "this series"}</b>.{" "}
+          <button type="button" className="link-btn" onClick={() => setParams({})}>
+            Show every article
+          </button>
+        </p>
+      ) : null}
 
       <div className="tabs" role="tablist" aria-label="Status">
         {STATUS_TABS.map((t) => (
@@ -131,7 +155,13 @@ export function BlogPage(): ReactElement {
                       {a.cover ? <img src={a.cover.url} alt="" className="blog-row__thumb" /> : <span className="blog-row__thumb is-empty" />}
                       <span>
                         <b>{a.title}</b>
-                        <small className="muted block mono">/blog/{a.slug}</small>
+                        {a.series_title ? (
+                          <small className="block episode-tag">
+                            {a.series_title} · {a.season > 1 ? `S${a.season} · ` : ""}E{String(a.episode ?? 0).padStart(2, "0")}
+                            {a.free_preview ? " · free" : " · members"}
+                          </small>
+                        ) : null}
+                        <small className="muted block mono">{articlePath(a)}</small>
                       </span>
                     </div>
                   </td>
@@ -159,7 +189,7 @@ export function BlogPage(): ReactElement {
                       Edit
                     </Link>
                     {a.state === "published" ? (
-                      <a className="link-btn blog-row__view" href={`${portalUrl()}/blog/${a.slug}`} target="_blank" rel="noreferrer">
+                      <a className="link-btn blog-row__view" href={`${portalUrl()}${articlePath(a)}`} target="_blank" rel="noreferrer">
                         View ↗
                       </a>
                     ) : null}

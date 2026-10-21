@@ -134,9 +134,11 @@ export function NewsletterCard({ article, dirty }: { article: Article; dirty: bo
             <input value={subject} maxLength={200} onChange={(e) => setSubject(e.target.value)} disabled={draft} />
           </label>
           <p className="side-card__note">
-            {state?.full_article
-              ? "Newsletter articles go out in full, with a link to the website."
-              : "Goes out as the title, summary and cover with a “Read” button to the website."}{" "}
+            {article.series
+              ? "A series episode goes out as its public opening with a “Read the full case file” button. Each subscriber's link unlocks the episode for them."
+              : state?.full_article
+                ? "Newsletter articles go out in full, with a link to the website."
+                : "Goes out as the title, summary and cover with a “Read” button to the website."}{" "}
             Every email has an unsubscribe link.
           </p>
           {dirty ? <p className="side-card__note is-warn">Save first: emails use the saved version.</p> : null}

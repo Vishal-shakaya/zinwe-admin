@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState, type ReactElement } from "react";
-import { Link, useBlocker, useNavigate, useParams } from "react-router-dom";
+import { Link, useBlocker, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   ARTICLE_TYPES,
   STATE_PILL,
+  articlePath,
   createArticle,
   deleteArticle,
   getArticle,
+  listSeries,
   publishArticle,
   unpublishArticle,
   updateArticle,
@@ -14,7 +16,9 @@ import {
   type ArticleInput,
   type ArticleType,
   type BlogImageRef,
+  type Series,
 } from "../lib/blogApi";
+import { AttachmentsCard } from "../components/AttachmentsCard";
 import { dateTime } from "../lib/format";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Modal } from "../components/Modal";
@@ -36,17 +40,27 @@ interface Form {
   seo_title: string;
   meta_description: string;
   author_name: string;
+  /** Series episode (null = an ordinary article). */
+  series: number | null;
+  season: number;
+  /** "" = the next free number. */
+  episode: string;
+  teaser_html: string;
+  free_preview: boolean;
 }
 
 const EMPTY: Form = {
   title: "", slug: "", type: "tutorial", summary: "", body_html: "", cover: null, cover_alt: "",
   tags: "", seo_title: "", meta_description: "", author_name: "",
+  series: null, season: 1, episode: "", teaser_html: "", free_preview: false,
 };
 
 const toForm = (a: Article): Form => ({
   title: a.title, slug: a.slug, type: a.type, summary: a.summary, body_html: a.body_html, cover: a.cover,
   cover_alt: a.cover_alt, tags: a.tags, seo_title: a.seo_title, meta_description: a.meta_description,
   author_name: a.author_name,
+  series: a.series, season: a.season, episode: a.episode ? String(a.episode) : "", teaser_html: a.teaser_html,
+  free_preview: a.free_preview,
 });
 
 /** Same rule as the server (Django slugify), so the URL preview is what you'll get. */
@@ -84,6 +98,15 @@ export function BlogEditorPage(): ReactElement {
   const isNew = id === "new";
   const navigate = useNavigate();
   const toast = useToast();
+  const [search] = useSearchParams();
+  const seriesParam = Number(search.get("series")) || null;
+  // Members-only series, for the "Series episode" picker.
+  const [allSeries, setAllSeries] = useState<Series[]>([]);
+  useEffect(() => {
+    listSeries()
+      .then(setAllSeries)
+      .catch(() => setAllSeries([]));
+  }, []);
 
   const [article, setArticle] = useState<Article | null>(null);
   const [form, setForm] = useState<Form>(EMPTY);
@@ -97,8 +120,9 @@ export function BlogEditorPage(): ReactElement {
   const [scheduleAt, setScheduleAt] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const coverInput = useRef<HTMLInputElement>(null);
-  // The editor normalises loaded HTML on mount; take that first emit as the saved baseline.
+  // The editors normalise loaded HTML on mount; take that first emit as the saved baseline.
   const bodyBaseline = useRef(true);
+  const teaserBaseline = useRef(true);
 
   // The article on screen; a new one saved for the first time moves to /blog/<id> without reloading it
   // (that would remount the editor under the cursor).
@@ -109,8 +133,10 @@ export function BlogEditorPage(): ReactElement {
     if (isNew) {
       loadedId.current = null;
       setArticle(null);
-      setForm(EMPTY);
-      setSaved(EMPTY);
+      // "New episode" from the Series page: /blog/new?series=<id>
+      const start: Form = seriesParam ? { ...EMPTY, series: seriesParam, type: "newsletter" } : EMPTY;
+      setForm(start);
+      setSaved(start);
       setEditorKey((k) => k + 1);
       return;
     }
@@ -124,13 +150,14 @@ export function BlogEditorPage(): ReactElement {
         setSaved(toForm(a));
         setSlugTouched(true);
         bodyBaseline.current = true;
+        teaserBaseline.current = true;
         setEditorKey((k) => k + 1);
       })
       .catch((err) => alive && setLoadError(err instanceof Error ? err.message : "Couldn't load this article."));
     return () => {
       alive = false;
     };
-  }, [id, isNew]);
+  }, [id, isNew, seriesParam]);
 
   const dirty = useMemo(() => JSON.stringify(form) !== JSON.stringify(saved), [form, saved]);
 
@@ -170,6 +197,11 @@ export function BlogEditorPage(): ReactElement {
     seo_title: form.seo_title,
     meta_description: form.meta_description,
     author_name: form.author_name,
+    series: form.series,
+    season: form.season,
+    episode: form.series && form.episode ? Number(form.episode) : null,
+    teaser_html: form.series ? form.teaser_html : "",
+    free_preview: form.series ? form.free_preview : false,
   });
 
   /** `openSaved`: a new article moves to its own URL once saved (not when saving on the way out). */
@@ -186,7 +218,7 @@ export function BlogEditorPage(): ReactElement {
       setArticle(next);
       // Server-normalised fields (slug, tags) come back; the body stays as the editor holds it. Anything typed
       // while it was saving (autosave) is kept: the form only takes the server copy if it didn't change meanwhile.
-      const nextForm = { ...toForm(next), body_html: sent.body_html };
+      const nextForm = { ...toForm(next), body_html: sent.body_html, teaser_html: sent.teaser_html };
       setForm((f) => (f === sent ? nextForm : f));
       setSaved(nextForm);
       setSlugTouched(true);
@@ -233,7 +265,9 @@ export function BlogEditorPage(): ReactElement {
       toast(
         next.state === "scheduled"
           ? `Scheduled. It goes live ${dateTime(next.published_at)}.`
-          : "Published. It's live on the blog.",
+          : next.series
+            ? "Published. The episode is live on its series page."
+            : "Published. It's live on the blog.",
       );
     } catch (err) {
       toast(err instanceof Error ? err.message : "Couldn't publish.", "bad");
@@ -306,6 +340,8 @@ export function BlogEditorPage(): ReactElement {
     { ok: form.tags.split(",").some((t) => t.trim()), label: "At least one tag" },
   ];
   const score = checks.filter((c) => c.ok).length;
+  const show = allSeries.find((x) => x.id === form.series) ?? null;
+  const urlPrefix = show ? `/blog/series/${show.slug}/` : "/blog/";
 
   return (
     <div className="editor">
@@ -342,7 +378,10 @@ export function BlogEditorPage(): ReactElement {
             onChange={(e) => set("title", e.target.value)}
           />
           <div className="editor__slug">
-            <span className="muted">{portalUrl().replace(/^https?:\/\//, "")}/blog/</span>
+            <span className="muted">
+              {portalUrl().replace(/^https?:\/\//, "")}
+              {urlPrefix}
+            </span>
             <input
               aria-label="URL slug"
               value={slug}
@@ -371,9 +410,37 @@ export function BlogEditorPage(): ReactElement {
             />
           </label>
 
+          {form.series ? (
+            <div className="editor__field">
+              <span>
+                Public opening <small>everyone sees this: the cold open that makes people want the rest (also the email teaser)</small>
+              </span>
+              <RichTextEditor
+                key={`teaser-${editorKey}`}
+                variant="article"
+                label="Public opening"
+                placeholder="4:42 PM. Tuesday. The phone rang…"
+                initialHtml={form.teaser_html}
+                onImageUpload={uploadInline}
+                onChange={(v: RichTextValue) => {
+                  const html = v.text ? v.html : "";
+                  set("teaser_html", html);
+                  if (teaserBaseline.current) {
+                    teaserBaseline.current = false;
+                    setSaved((s) => ({ ...s, teaser_html: html }));
+                  }
+                }}
+              />
+            </div>
+          ) : null}
+
           <div className="editor__field">
             <span>
-              Article <small>{words} words · about {Math.max(1, Math.ceil(words / 200))} min read</small>
+              {form.series ? "Members-only part" : "Article"}{" "}
+              <small>
+                {words} words · about {Math.max(1, Math.ceil(words / 200))} min read
+                {form.series ? " · the full case file: story, lesson, 10-minute challenge" : ""}
+              </small>
             </span>
             <RichTextEditor
               key={editorKey}
@@ -455,7 +522,7 @@ export function BlogEditorPage(): ReactElement {
               )
             ) : null}
             {live && article ? (
-              <a className="link-btn" href={`${portalUrl()}/blog/${article.slug}`} target="_blank" rel="noreferrer">
+              <a className="link-btn" href={`${portalUrl()}${articlePath(article)}`} target="_blank" rel="noreferrer">
                 View on the website ↗
               </a>
             ) : null}
@@ -470,6 +537,81 @@ export function BlogEditorPage(): ReactElement {
           </section>
 
           {article ? <NewsletterCard article={article} dirty={dirty} /> : null}
+
+          <section className="side-card">
+            <h3>Series episode</h3>
+            <label className="editor__field">
+              <span>
+                Series <small>members-only: the body and files are for subscribers</small>
+              </span>
+              <select
+                value={form.series ?? ""}
+                onChange={(e) => {
+                  const next = e.target.value ? Number(e.target.value) : null;
+                  setForm((f) => ({ ...f, series: next, ...(next && f.type !== "newsletter" && !article ? { type: "newsletter" as ArticleType } : {}) }));
+                }}
+              >
+                <option value="">None (an ordinary article)</option>
+                {allSeries.map((x) => (
+                  <option key={x.id} value={x.id}>
+                    {x.title}
+                    {x.status === "draft" ? " (draft)" : ""}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {form.series ? (
+              <>
+                <div className="side-card__row">
+                  <label className="editor__field">
+                    <span>Season</span>
+                    <select value={form.season} onChange={(e) => set("season", Number(e.target.value))}>
+                      {(show?.seasons.length ? show.seasons : [{ number: form.season, title: "", theme: "" }]).map((s) => (
+                        <option key={s.number} value={s.number}>
+                          {s.number}
+                          {s.title ? ` · ${s.title}` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="editor__field">
+                    <span>
+                      Episode <small>empty = next</small>
+                    </span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={999}
+                      value={form.episode}
+                      placeholder="next"
+                      onChange={(e) => set("episode", e.target.value)}
+                    />
+                  </label>
+                </div>
+                <label className="check-row">
+                  <input type="checkbox" checked={form.free_preview} onChange={(e) => set("free_preview", e.target.checked)} />
+                  <span>
+                    <b>Free episode</b> <small className="muted">anyone can read it in full (e.g. the pilot)</small>
+                  </span>
+                </label>
+                {show && show.status === "draft" ? (
+                  <p className="side-card__note is-warn">This series is a draft: its episodes aren't on the website until it's live (Blog → Series).</p>
+                ) : null}
+              </>
+            ) : allSeries.length === 0 ? (
+              <p className="side-card__note">
+                No series yet. <Link to="/blog/series">Create one</Link>.
+              </p>
+            ) : null}
+          </section>
+
+          {article ? (
+            <AttachmentsCard
+              article={article}
+              membersOnly={!!article.series && !article.free_preview}
+              onChange={(next) => setArticle(next)}
+            />
+          ) : null}
 
           <section className="side-card">
             <h3>Type</h3>
@@ -540,7 +682,7 @@ export function BlogEditorPage(): ReactElement {
               Search (SEO) <span className={"seo-score" + (score >= 5 ? " is-good" : "")}>{score}/6</span>
             </h3>
             <div className="serp" aria-label="Google preview">
-              <span className="serp__url">zinwe.io › blog › {slug || "…"}</span>
+              <span className="serp__url">zinwe.io{urlPrefix.replace(/\//g, " › ").replace(/ › $/, "")} › {slug || "…"}</span>
               <span className="serp__title">{seoTitle ? seoTitle.slice(0, 62) + (seoTitle.length > 62 ? "…" : "") : "Search title"}</span>
               <span className="serp__desc">
                 {metaDesc ? metaDesc.slice(0, 158) + (metaDesc.length > 158 ? "…" : "") : "The description people see under the title."}
