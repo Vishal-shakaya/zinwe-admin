@@ -214,6 +214,10 @@ export interface FeedbackRow {
   page: string;
   created_at: string;
   customer: { id: number; email: string; full_name: string; company: string | null };
+  /** "member" = sent by an employee from their Zinwe window (FR-14); older backends leave it out (= owner). */
+  source?: "owner" | "member";
+  /** Who sent member feedback; null for the owner's own. */
+  member?: { name: string; hostname: string } | null;
 }
 
 export interface FeedbackSummary {

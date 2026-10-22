@@ -111,7 +111,7 @@ export function FeedbackPage(): ReactElement {
           {data.rows.length === 0 ? (
             <div className="card empty">
               <b>No feedback yet</b>
-              <span className="muted">Customers can send it from the Feedback page in their dashboard.</span>
+              <span className="muted">Customers send it from the Feedback page in their dashboard; their team members from the Zinwe window.</span>
             </div>
           ) : rows.length === 0 ? (
             <p className="muted">No feedback in this range.</p>
@@ -135,7 +135,14 @@ export function FeedbackPage(): ReactElement {
                       </td>
                       <td className="fb-msg">
                         {r.message ? r.message : <span className="muted">No comment</span>}
-                        {r.page ? <small className="muted block">Sent from {pageName(r.page)}</small> : null}
+                        {r.source === "member" ? (
+                          <small className="muted block">
+                            From a member{r.member?.name ? `, ${r.member.name}` : ""}
+                            {r.member?.hostname ? ` (${r.member.hostname})` : ""}, in their Zinwe window
+                          </small>
+                        ) : r.page ? (
+                          <small className="muted block">Sent from {pageName(r.page)}</small>
+                        ) : null}
                       </td>
                       <td>
                         <b>{r.customer.full_name || r.customer.email}</b>
