@@ -2256,3 +2256,24 @@ body {
 @media (max-width: 600px) {
   .forms-fields { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* ---------- What's new: release-note editor (FR-21) ---------- */
+
+.rn-form textarea {
+  width: 100%;
+  font: inherit;
+  font-family: var(--mono, ui-monospace, monospace);
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 9px 11px;
+  border: 1.5px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--white);
+  resize: vertical;
+}
+
+.rn-form textarea:focus {
+  outline: 0;
+  border-color: var(--orange-deep);
+  box-shadow: 0 0 0 3px rgba(253, 109, 2, 0.16);
+}

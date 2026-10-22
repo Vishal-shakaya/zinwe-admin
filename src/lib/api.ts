@@ -601,3 +601,34 @@ export async function downloadInvoicePdf(paymentId: number, number: string): Pro
   a.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
+
+/** A release note for "What's new" (FR-21). `published_at` null = draft. */
+export interface ReleaseNote {
+  id: number;
+  version: string;
+  title: string;
+  summary: string;
+  body: string;
+  published_at: string | null;
+  status: "draft" | "scheduled" | "live";
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ReleaseNoteInput {
+  version: string;
+  title: string;
+  summary: string;
+  body: string;
+}
+
+export const getReleaseNotes = () => request<ReleaseNote[]>("/api/admin/release-notes/");
+
+export const createReleaseNote = (input: ReleaseNoteInput) =>
+  request<ReleaseNote>("/api/admin/release-notes/", { method: "POST", body: JSON.stringify(input) });
+
+export const updateReleaseNote = (id: number, patch: Partial<ReleaseNoteInput> & { published_at?: string | null }) =>
+  request<ReleaseNote>(`/api/admin/release-notes/${id}/`, { method: "PATCH", body: JSON.stringify(patch) });
+
+export const deleteReleaseNote = (id: number) =>
+  request<null>(`/api/admin/release-notes/${id}/`, { method: "DELETE" });

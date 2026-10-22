@@ -23,6 +23,7 @@ const NAV: NavItem[] = [
   { to: "/support", label: "Support", badge: "support_waiting", badgeLabel: "waiting for an answer" },
   { to: "/forms", label: "Forms", badge: "forms_new", badgeLabel: "new form submissions" },
   { to: "/announcements", label: "Announcements" },
+  { to: "/whats-new", label: "What's new" },
   { to: "/releases", label: "Releases" },
   { to: "/blog", label: "Blog" },
 ];
