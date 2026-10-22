@@ -66,6 +66,9 @@ export function BlogPage(): ReactElement {
         <Link className="btn btn--ghost" to="/blog/series">
           Series
         </Link>
+        <Link className="btn btn--ghost" to="/blog/guides">
+          Guides
+        </Link>
         <Link className="btn btn--ghost" to="/blog/subscribers">
           Subscribers
         </Link>

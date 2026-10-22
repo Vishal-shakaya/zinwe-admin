@@ -303,3 +303,14 @@
 .series-kpis span { font-size: 12px; color: var(--mute); }
 .sheet .num { text-align: right; font-variant-numeric: tabular-nums; }
 @media (max-width: 640px) { .series-kpis { grid-template-columns: 1fr 1fr; } }
+
+.guide-card { flex-direction: row; }
+.guide-card__cover { width: 120px; flex: none; aspect-ratio: 1 / 1.414; object-fit: cover; background: #15161a; }
+.guide-card__cover.is-empty { background: linear-gradient(135deg, #2a0f15, #15161a); }
+.guide-kpis { grid-template-columns: repeat(2, 1fr); margin: 4px 0; }
+.guide-kpis b { font-size: 18px; }
+.guide-cover-preview { width: 140px; aspect-ratio: 1 / 1.414; object-fit: cover; border: 1px solid var(--line); border-radius: 4px; }
+.guide-samples { display: flex; flex-wrap: wrap; gap: 10px; }
+.guide-samples span { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+.guide-samples img { width: 96px; aspect-ratio: 1 / 1.414; object-fit: cover; border: 1px solid var(--line); border-radius: 3px; }
+@media (max-width: 640px) { .guide-card { flex-direction: column; } .guide-card__cover { width: 100%; max-height: 260px; } }

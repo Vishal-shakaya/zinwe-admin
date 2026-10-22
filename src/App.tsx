@@ -18,6 +18,7 @@ import { BlogPage } from "./pages/BlogPage";
 import { BlogEditorPage } from "./pages/BlogEditorPage";
 import { BlogSubscribersPage } from "./pages/BlogSubscribersPage";
 import { BlogSeriesPage } from "./pages/BlogSeriesPage";
+import { BlogGuidesPage } from "./pages/BlogGuidesPage";
 
 // Documentation tab: local dev only. `import.meta.env.DEV` is false in `vite build`, so production bundles drop
 // this import (and the docs are served only by the dev server, see vite.config.ts).
@@ -81,6 +82,7 @@ export function App(): ReactElement {
             <Route path="/blog" element={<BlogPage />} />
             <Route path="/blog/subscribers" element={<BlogSubscribersPage />} />
             <Route path="/blog/series" element={<BlogSeriesPage />} />
+            <Route path="/blog/guides" element={<BlogGuidesPage />} />
             <Route path="/blog/:id" element={<BlogEditorPage />} />
             {DocsPage ? (
               <Route

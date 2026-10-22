@@ -231,6 +231,66 @@ export const updateSeries = (id: number, input: Partial<SeriesInput>) =>
   call<Series>(`${BASE}/series/${id}/`, { method: "PATCH", body: JSON.stringify(input) });
 export const deleteSeries = (id: number) => call<null>(`${BASE}/series/${id}/`, { method: "DELETE" });
 
+// --- Guides (free e-books) --------------------------------------------------------
+
+export interface Guide {
+  id: number;
+  slug: string;
+  title: string;
+  subtitle: string;
+  summary: string;
+  description: string;
+  audience: string;
+  cover: BlogImageRef | null;
+  cover_alt: string;
+  page_count: number;
+  highlights: { value: string; label: string }[];
+  contents: { title: string; note: string }[];
+  feature_line: string;
+  tags: string;
+  campaign: string;
+  status: "draft" | "published";
+  position: number;
+  sample_pages: BlogImageRef[];
+  has_file: boolean;
+  filename: string;
+  size: number;
+  stats: { members_downloaded: number; downloads: number; joined_on_page: number; signups: number };
+  updated_at: string;
+}
+
+export interface GuideInput {
+  title: string;
+  slug?: string;
+  subtitle?: string;
+  summary?: string;
+  description?: string;
+  audience?: string;
+  cover_image?: number | null;
+  cover_alt?: string;
+  sample_pages?: number[];
+  contents?: { title: string; note: string }[];
+  highlights?: { value: string; label: string }[];
+  feature_line?: string;
+  tags?: string;
+  campaign?: string;
+  filename?: string;
+  status?: "draft" | "published";
+  position?: number;
+}
+
+export const listGuides = () => call<Guide[]>(`${BASE}/guides/`);
+export const createGuide = (input: GuideInput) => call<Guide>(`${BASE}/guides/`, { method: "POST", body: JSON.stringify(input) });
+export const updateGuide = (id: number, input: Partial<GuideInput>) =>
+  call<Guide>(`${BASE}/guides/${id}/`, { method: "PATCH", body: JSON.stringify(input) });
+export const deleteGuide = (id: number) => call<null>(`${BASE}/guides/${id}/`, { method: "DELETE" });
+/** The guide's PDF (up to 9 MB) -> the guide. */
+export function uploadGuidePdf(id: number, file: File): Promise<Guide> {
+  const form = new FormData();
+  form.append("file", file);
+  return call<Guide>(`${BASE}/guides/${id}/file/`, { method: "POST", body: form });
+}
+
 // --- Newsletter -------------------------------------------------------------------
 
 export interface NewsletterProgress {
