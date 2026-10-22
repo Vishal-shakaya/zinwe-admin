@@ -34,6 +34,8 @@ const METHOD_LABEL: Record<string, string> = {
   skydo: "Skydo",
   cheque: "Cheque",
   cash: "Cash",
+  // Paid online through Razorpay: approved automatically, no receipt (z_payments).
+  razorpay: "Online (Razorpay)",
 };
 
 export function methodLabel(method: string): string {
