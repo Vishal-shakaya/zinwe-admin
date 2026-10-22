@@ -4,6 +4,7 @@ import {
   createGuide,
   deleteGuide,
   listGuides,
+  testGuideFollowups,
   updateGuide,
   uploadBlogImage,
   uploadGuidePdf,
@@ -39,6 +40,26 @@ export function BlogGuidesPage(): ReactElement {
   const toast = useToast();
   const [editing, setEditing] = useState<Guide | "new" | null>(null);
   const [removing, setRemoving] = useState<Guide | null>(null);
+  const [approving, setApproving] = useState<Guide | null>(null);
+
+  const testEmails = async (g: Guide) => {
+    try {
+      const r = await testGuideFollowups(g.id);
+      toast(`Sent ${r.sent} of ${r.of} test emails to ${r.to}.`);
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Couldn't send the tests.", "bad");
+    }
+  };
+
+  const setFollowups = async (g: Guide, on: boolean) => {
+    try {
+      await updateGuide(g.id, { followups_enabled: on });
+      toast(on ? "Follow-up emails on." : "Follow-up emails off.");
+      list.reload();
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Couldn't change it.", "bad");
+    }
+  };
 
   const toggle = async (g: Guide) => {
     try {
@@ -97,6 +118,35 @@ export function BlogGuidesPage(): ReactElement {
                   <div><b>{g.stats.downloads}</b><span>downloads</span></div>
                   <div><b>{g.stats.signups}</b><span>Zinwe sign-ups</span></div>
                 </div>
+                {g.followups.length ? (
+                  <div className={"guide-followups" + (g.followups_enabled ? " is-on" : "")}>
+                    <p>
+                      <b>Follow-up emails: {g.followups_enabled ? "on" : "off"}</b>{" "}
+                      <span className="muted">after a member's first download, from 09:00 their time, max one Zinwe email a day</span>
+                    </p>
+                    <ol>
+                      {g.followup_stats.map((s) => (
+                        <li key={s.day + s.subject}>
+                          <span className="mono">Day {s.day}</span> {s.subject} <small className="muted">· sent {s.sent}</small>
+                        </li>
+                      ))}
+                    </ol>
+                    <div className="side-card__row">
+                      <button type="button" className="link-btn" onClick={() => void testEmails(g)}>
+                        Send me the test emails
+                      </button>
+                      {g.followups_enabled ? (
+                        <button type="button" className="link-btn link-btn--danger" onClick={() => void setFollowups(g, false)}>
+                          Turn off
+                        </button>
+                      ) : (
+                        <button type="button" className="link-btn" onClick={() => setApproving(g)}>
+                          Approve and turn on
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ) : null}
                 <div className="side-card__row">
                   <button type="button" className="link-btn" onClick={() => setEditing(g)}>
                     Edit
@@ -128,6 +178,22 @@ export function BlogGuidesPage(): ReactElement {
             list.reload();
           }}
         />
+      ) : null}
+
+      {approving ? (
+        <ConfirmDialog
+          title="Turn on the follow-up emails?"
+          confirmLabel="Approve and turn on"
+          onClose={() => setApproving(null)}
+          onConfirm={async () => {
+            await setFollowups(approving, true);
+          }}
+        >
+          <p>
+            Members who download <b>{approving.title}</b> will get {approving.followups.length} emails over {Math.max(...approving.followups.map((f) => f.day))}{" "}
+            days, starting with members who download it from now on (earlier downloads get none). Send yourself the test emails first if you haven't read them.
+          </p>
+        </ConfirmDialog>
       ) : null}
 
       {removing ? (

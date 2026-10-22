@@ -314,3 +314,9 @@
 .guide-samples span { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
 .guide-samples img { width: 96px; aspect-ratio: 1 / 1.414; object-fit: cover; border: 1px solid var(--line); border-radius: 3px; }
 @media (max-width: 640px) { .guide-card { flex-direction: column; } .guide-card__cover { width: 100%; max-height: 260px; } }
+
+.guide-followups { margin: 6px 0; padding: 10px 12px; border: 1px dashed var(--line); border-radius: var(--radius-sm); font-size: 12.5px; }
+.guide-followups.is-on { border-style: solid; border-color: #abefc6; background: #f6fef9; }
+.guide-followups p { margin: 0 0 6px; }
+.guide-followups ol { margin: 0 0 6px; padding-left: 18px; }
+.guide-followups li { margin: 2px 0; }

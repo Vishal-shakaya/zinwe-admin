@@ -257,6 +257,10 @@ export interface Guide {
   size: number;
   stats: { members_downloaded: number; downloads: number; joined_on_page: number; signups: number };
   updated_at: string;
+  /** Follow-up emails after a member's first download; they go out only when enabled (owner-approved). */
+  followups: { day: number; subject: string; preview: string; body_html: string; cta_label: string; cta_url: string }[];
+  followups_enabled: boolean;
+  followup_stats: { day: number; subject: string; sent: number }[];
 }
 
 export interface GuideInput {
@@ -277,6 +281,7 @@ export interface GuideInput {
   filename?: string;
   status?: "draft" | "published";
   position?: number;
+  followups_enabled?: boolean;
 }
 
 export const listGuides = () => call<Guide[]>(`${BASE}/guides/`);
@@ -284,6 +289,9 @@ export const createGuide = (input: GuideInput) => call<Guide>(`${BASE}/guides/`,
 export const updateGuide = (id: number, input: Partial<GuideInput>) =>
   call<Guide>(`${BASE}/guides/${id}/`, { method: "PATCH", body: JSON.stringify(input) });
 export const deleteGuide = (id: number) => call<null>(`${BASE}/guides/${id}/`, { method: "DELETE" });
+/** Every follow-up email, marked [Test], to the signed-in staff member (for approval). */
+export const testGuideFollowups = (id: number) =>
+  call<{ sent: number; of: number; to: string }>(`${BASE}/guides/${id}/followups/test/`, { method: "POST" });
 /** The guide's PDF (up to 9 MB) -> the guide. */
 export function uploadGuidePdf(id: number, file: File): Promise<Guide> {
   const form = new FormData();
