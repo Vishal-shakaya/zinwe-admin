@@ -48,7 +48,19 @@ const AUDIENCE_LABEL: Record<AnnouncementAudience, string> = {
   free: "Free plan only",
   paid: "Paid plans only",
   plans: "Chosen plans",
+  owners: "Specific customers",
 };
+
+/** "jo@acme.in, sam@acme.in" or one per line → a tidy list. */
+function parseEmails(text: string): string[] {
+  return Array.from(new Set(text.split(/[\s,;]+/).map((e) => e.trim().toLowerCase()).filter(Boolean)));
+}
+
+/** "Upgrade for ₹1.00 + GST": the button an offer gets when no button is written. */
+function offerButton(price: string | null): string {
+  const n = Number(price);
+  return Number.isFinite(n) && n > 0 ? `Upgrade for ₹${n.toLocaleString("en-IN", { minimumFractionDigits: 2 })} + GST` : "Upgrade";
+}
 
 const STATUS_PILL: Record<AnnouncementStatus, [string, string]> = {
   live: ["pill--good", "Live"],
@@ -99,6 +111,18 @@ const PRESETS: ReadonlyArray<{ label: string; value: Partial<AnnouncementInput> 
     },
   },
   {
+    label: "Special price",
+    value: {
+      kind: "offer",
+      title: "",
+      body: "A special price, just for you. Pay online and your plan upgrades at once.",
+      cta_label: "",
+      cta_href: "",
+      placement: "dashboard",
+      audience: "owners",
+    },
+  },
+  {
     label: "Maintenance",
     value: {
       kind: "maintenance",
@@ -121,8 +145,11 @@ function emptyInput(): AnnouncementInput {
     placement: "dashboard",
     audience: "everyone",
     plan_codes: [],
+    owner_emails: [],
     cta_label: "",
     cta_href: "",
+    offer_plan: null,
+    offer_price_inr: null,
     starts_at: new Date().toISOString(),
     ends_at: null,
     is_active: true,
@@ -224,6 +251,12 @@ export function AnnouncementsPage(): ReactElement {
                             {a.cta_label} → {a.cta_href}
                           </div>
                         ) : null}
+                        {a.offer_plan ? (
+                          <div className="muted">
+                            Special price: {planName(a.offer_plan)} at ₹{a.offer_price_inr} + GST, online · used{" "}
+                            {a.offer_uses} time{a.offer_uses === 1 ? "" : "s"}
+                          </div>
+                        ) : null}
                       </td>
                       <td className="nowrap">{PLACEMENT_LABEL[a.placement]}</td>
                       <td>
@@ -231,6 +264,7 @@ export function AnnouncementsPage(): ReactElement {
                         {a.audience === "plans" && a.placement !== "website" ? (
                           <div className="muted">{a.plan_codes.map(planName).join(", ")}</div>
                         ) : null}
+                        {a.audience === "owners" ? <div className="muted">{a.owner_emails.join(", ")}</div> : null}
                       </td>
                       <td className="nowrap">
                         {dateTime(a.starts_at)}
@@ -298,7 +332,20 @@ export function AnnouncementsPage(): ReactElement {
   );
 }
 
-type FieldKey = "title" | "cta_label" | "cta_href" | "plan_codes" | "ends_at";
+type FieldKey =
+  | "title"
+  | "cta_label"
+  | "cta_href"
+  | "plan_codes"
+  | "owner_emails"
+  | "offer_plan"
+  | "offer_price_inr"
+  | "placement"
+  | "ends_at";
+
+const FIELD_KEYS: ReadonlyArray<FieldKey> = [
+  "title", "cta_label", "cta_href", "plan_codes", "owner_emails", "offer_plan", "offer_price_inr", "placement", "ends_at",
+];
 
 /** A link the bar can open: a page on zinwe.io (/…), an https:// link, or an email address (mailto:). */
 function linkError(href: string): string | null {
@@ -324,6 +371,19 @@ function validate(form: AnnouncementInput): Partial<Record<FieldKey, string>> {
   if (form.placement !== "website" && form.audience === "plans" && form.plan_codes.length === 0) {
     errors.plan_codes = "Pick at least one plan.";
   }
+  if (form.audience === "owners") {
+    if (form.placement === "website") errors.placement = "A message for specific customers shows on the dashboard.";
+    else if (form.owner_emails.length === 0) errors.owner_emails = "Add at least one customer's sign-in email.";
+    else if (form.owner_emails.some((e) => !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e))) {
+      errors.owner_emails = "One of these isn't an email address.";
+    }
+  }
+  if (form.offer_plan) {
+    const price = Number(form.offer_price_inr);
+    if (!form.offer_price_inr || !Number.isFinite(price)) errors.offer_price_inr = "Write the special price.";
+    else if (price < 1) errors.offer_price_inr = "At least ₹1.00 (online payments can't be smaller).";
+    if (form.placement === "website") errors.placement = "Special prices show on the dashboard, where customers pay.";
+  }
   if (form.ends_at && new Date(form.ends_at).getTime() <= new Date(form.starts_at).getTime()) {
     errors.ends_at = "The end must be after the start.";
   }
@@ -334,12 +394,13 @@ function validate(form: AnnouncementInput): Partial<Record<FieldKey, string>> {
 function useReach(form: AnnouncementInput): { customers: number; total: number } | null {
   const [reach, setReach] = useState<{ customers: number; total: number } | null>(null);
   const plans = form.plan_codes.join(",");
+  const emails = form.audience === "owners" ? form.owner_emails.join(",") : "";
   const dashboard = form.placement !== "website";
   useEffect(() => {
     if (!dashboard) return;
     let alive = true;
     const timer = window.setTimeout(() => {
-      getAnnouncementReach(form.audience, plans ? plans.split(",") : [])
+      getAnnouncementReach(form.audience, plans ? plans.split(",") : [], emails ? emails.split(",") : [])
         .then((r) => {
           if (alive) setReach(r);
         })
@@ -351,7 +412,7 @@ function useReach(form: AnnouncementInput): { customers: number; total: number }
       alive = false;
       window.clearTimeout(timer);
     };
-  }, [form.audience, plans, dashboard]);
+  }, [form.audience, plans, emails, dashboard]);
   return dashboard ? reach : null;
 }
 
@@ -368,9 +429,12 @@ function AnnouncementEditor({
   const plans = useLoad(loadPlans);
   const [form, setForm] = useState<AnnouncementInput>(() => {
     if (!existing) return emptyInput();
-    const { id: _id, status: _s, created_by: _c, created_at: _ca, updated_at: _u, ...input } = existing;
+    const { id: _id, status: _s, created_by: _c, created_at: _ca, updated_at: _u, offer_uses: _o, ...input } = existing;
     return input;
   });
+  // Typed as text (commas or one per line); the form keeps the tidy list.
+  const [emailsText, setEmailsText] = useState(() => form.owner_emails.join(", "));
+  const paidPlans = (plans.data ?? []).filter((p) => Number(p.price_inr_monthly) > 0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [errors, setErrors] = useState<Partial<Record<FieldKey, string>>>({});
@@ -386,6 +450,7 @@ function AnnouncementEditor({
 
   const applyPreset = (value: Partial<AnnouncementInput>) => {
     setForm((f) => ({ ...f, ...value }));
+    if (value.owner_emails) setEmailsText(value.owner_emails.join(", "));
     setErrors({});
     // Presets that leave the headline empty (a discount, a version, a time) want it written now.
     if (!value.title) window.setTimeout(() => titleInput.current?.focus(), 0);
@@ -409,8 +474,10 @@ function AnnouncementEditor({
       body: form.body.trim(),
       cta_label: form.cta_label.trim(),
       cta_href: form.cta_href.trim(),
+      owner_emails: form.audience === "owners" ? form.owner_emails : [],
+      offer_price_inr: form.offer_plan ? form.offer_price_inr : null,
       // The website shows a message to every visitor: no dashboard audience to keep.
-      ...(form.placement === "website" ? { audience: "everyone" as const, plan_codes: [] } : {}),
+      ...(form.placement === "website" ? { audience: "everyone" as const, plan_codes: [], owner_emails: [] } : {}),
     };
     try {
       const saved = existing ? await updateAnnouncement(existing.id, payload) : await createAnnouncement(payload);
@@ -418,7 +485,7 @@ function AnnouncementEditor({
     } catch (e) {
       const fields = e instanceof ApiError ? e.fields : {};
       const atFields = Object.fromEntries(
-        Object.entries(fields).filter(([k]) => ["title", "cta_label", "cta_href", "plan_codes", "ends_at"].includes(k)),
+        Object.entries(fields).filter(([k]) => (FIELD_KEYS as ReadonlyArray<string>).includes(k)),
       ) as Partial<Record<FieldKey, string>>;
       setErrors(atFields);
       // Anything not tied to a field shows in the footer.
@@ -479,7 +546,11 @@ function AnnouncementEditor({
         <div className={`ann-preview ann-preview--${form.kind}`} aria-label="Preview">
           <b>{form.title || "Your headline"}</b>
           {form.body ? <span> {form.body}</span> : null}
-          {form.cta_label ? <span className="ann-preview__cta">{form.cta_label} →</span> : null}
+          {form.cta_label ? (
+            <span className="ann-preview__cta">{form.cta_label} →</span>
+          ) : form.offer_plan ? (
+            <span className="ann-preview__cta">{offerButton(form.offer_price_inr)} →</span>
+          ) : null}
           {form.dismissible ? <span className="ann-preview__x">×</span> : null}
         </div>
 
@@ -500,6 +571,7 @@ function AnnouncementEditor({
               className="plan-select ann-select"
               value={form.placement}
               onChange={(e) => set("placement", e.target.value as AnnouncementPlacement)}
+              {...fieldProps("placement")}
             >
               {Object.entries(PLACEMENT_LABEL).map(([value, label]) => (
                 <option key={value} value={value}>
@@ -507,6 +579,7 @@ function AnnouncementEditor({
                 </option>
               ))}
             </select>
+            {fieldError("placement")}
           </label>
         </div>
 
@@ -582,10 +655,68 @@ function AnnouncementEditor({
               </div>
             ) : null}
             {fieldError("plan_codes")}
+            {form.audience === "owners" ? (
+              <label className="field">
+                <span>Their sign-in emails (commas or one per line)</span>
+                <textarea
+                  rows={2}
+                  value={emailsText}
+                  onChange={(e) => {
+                    setEmailsText(e.target.value);
+                    set("owner_emails", parseEmails(e.target.value));
+                  }}
+                  placeholder="owner@company.in"
+                  {...fieldProps("owner_emails")}
+                />
+                {fieldError("owner_emails")}
+              </label>
+            ) : null}
             {form.placement === "both" ? (
               <small className="muted">The website shows it to every visitor.</small>
             ) : null}
           </fieldset>
+        ) : null}
+
+        {form.placement !== "website" ? (
+          <div className="ann-grid">
+            <label className="field">
+              <span>Special price (optional)</span>
+              <select
+                className="plan-select ann-select"
+                value={form.offer_plan ?? ""}
+                onChange={(e) => set("offer_plan", e.target.value || null)}
+                {...fieldProps("offer_plan")}
+              >
+                <option value="">No special price</option>
+                {paidPlans.map((p) => (
+                  <option key={p.code} value={p.code}>
+                    Upgrade to {p.name}
+                  </option>
+                ))}
+              </select>
+              {fieldError("offer_plan")}
+            </label>
+            {form.offer_plan ? (
+              <label className="field">
+                <span>Price in ₹, before GST (one billing cycle)</span>
+                <input
+                  type="number"
+                  min={1}
+                  step="0.01"
+                  inputMode="decimal"
+                  value={form.offer_price_inr ?? ""}
+                  onChange={(e) => set("offer_price_inr", e.target.value || null)}
+                  placeholder="1.00"
+                  {...fieldProps("offer_price_inr")}
+                />
+                {fieldError("offer_price_inr")}
+                <small className="muted">
+                  Paid online only, once per customer, while this is live. Renewals are at the normal price. Leave the
+                  button empty: it becomes "{offerButton(form.offer_price_inr)}".
+                </small>
+              </label>
+            ) : null}
+          </div>
         ) : null}
 
         <div className="ann-grid">

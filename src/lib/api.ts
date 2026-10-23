@@ -478,7 +478,7 @@ export const getReleaseReach = (version: string) =>
 
 export type AnnouncementKind = "offer" | "discount" | "news" | "version" | "maintenance";
 export type AnnouncementPlacement = "dashboard" | "website" | "both";
-export type AnnouncementAudience = "everyone" | "free" | "paid" | "plans";
+export type AnnouncementAudience = "everyone" | "free" | "paid" | "plans" | "owners";
 /** live = showing now · scheduled = starts later · ended = past its end · off = switched off. */
 export type AnnouncementStatus = "live" | "scheduled" | "ended" | "off";
 
@@ -490,8 +490,18 @@ export interface Announcement {
   placement: AnnouncementPlacement;
   audience: AnnouncementAudience;
   plan_codes: string[];
+  /** Sign-in emails, when the audience is "owners" (dashboard only). */
+  owner_emails: string[];
   cta_label: string;
   cta_href: string;
+  /**
+   * A special price: the bar's button upgrades to this plan (code) at `offer_price_inr` (rupees, before GST, one
+   * billing cycle), paid online. Once per owner, while live; renewals are at the normal price. Dashboard only.
+   */
+  offer_plan: string | null;
+  offer_price_inr: string | null;
+  /** How many owners have paid with the offer. */
+  offer_uses: number;
   starts_at: string;
   ends_at: string | null;
   is_active: boolean;
@@ -503,7 +513,10 @@ export interface Announcement {
   updated_at: string;
 }
 
-export type AnnouncementInput = Omit<Announcement, "id" | "status" | "created_by" | "created_at" | "updated_at">;
+export type AnnouncementInput = Omit<
+  Announcement,
+  "id" | "status" | "created_by" | "created_at" | "updated_at" | "offer_uses"
+>;
 
 export const getAnnouncements = () => request<Announcement[]>("/api/admin/announcements/");
 
@@ -517,9 +530,10 @@ export const deleteAnnouncement = (id: number) =>
   request<null>(`/api/admin/announcements/${id}/`, { method: "DELETE" });
 
 /** How many customers a dashboard message with this audience reaches right now. */
-export const getAnnouncementReach = (audience: AnnouncementAudience, planCodes: string[]) =>
+export const getAnnouncementReach = (audience: AnnouncementAudience, planCodes: string[], emails: string[] = []) =>
   request<{ customers: number; total: number }>(
-    `/api/admin/announcements/reach/?audience=${audience}&plans=${encodeURIComponent(planCodes.join(","))}`,
+    `/api/admin/announcements/reach/?audience=${audience}&plans=${encodeURIComponent(planCodes.join(","))}` +
+      `&emails=${encodeURIComponent(emails.join(","))}`,
   );
 
 // --- Subscriptions (billing by country: currency, tax, payment link, invoices) ----------------
