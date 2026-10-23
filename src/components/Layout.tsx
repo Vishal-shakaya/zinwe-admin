@@ -19,6 +19,7 @@ const NAV: NavItem[] = [
   { to: "/", label: "Dashboard", end: true },
   { to: "/subscribers", label: "Subscribers", badge: "payments_waiting", badgeLabel: "payments to check" },
   { to: "/subscriptions", label: "Subscriptions" },
+  { to: "/pricing", label: "Plans & pricing" },
   { to: "/feedback", label: "Feedback" },
   { to: "/support", label: "Support", badge: "support_waiting", badgeLabel: "waiting for an answer" },
   { to: "/forms", label: "Forms", badge: "forms_new", badgeLabel: "new form submissions" },

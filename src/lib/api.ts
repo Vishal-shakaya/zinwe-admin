@@ -474,6 +474,58 @@ export const updateRelease = (id: number, patch: Partial<Pick<AgentRelease, "req
 export const getReleaseReach = (version: string) =>
   request<{ older: number; total: number }>(`/api/admin/releases/reach/?version=${encodeURIComponent(version)}`);
 
+// --- Plans & pricing (by region: India / International, and cycle: monthly / yearly) ---------
+
+export type PricingCurrency = "INR" | "USD";
+
+export interface RegionPricing {
+  currency: PricingCurrency;
+  monthly: { list: string; price: string; discount_percent: number };
+  yearly: {
+    /** 12 x the monthly list price (what the yearly discount is shown against). */
+    list: string;
+    /** The whole year, before tax. */
+    price: string;
+    /** True when a yearly price is set; false = 12 x the monthly price. */
+    custom: boolean;
+    saving_percent: number;
+    /** e.g. "10.0": a year costs this many monthly payments. */
+    months_charged: string;
+  };
+}
+
+export interface PlanPricing {
+  code: string;
+  name: string;
+  tagline: string;
+  max_devices: number;
+  is_recommended: boolean;
+  is_free: boolean;
+  /** Customers paying for this plan now. */
+  subscribers: number;
+  regions: Record<PricingCurrency, RegionPricing>;
+}
+
+export interface PricingOverview {
+  plans: PlanPricing[];
+  /** GST added in India (0 when the seller isn't registered for GST). */
+  gst_rate: number;
+}
+
+export interface RegionPriceInput {
+  list_monthly: string;
+  discount_percent: number;
+  /** The whole year; null = 12 x the monthly price. */
+  yearly_price: string | null;
+}
+
+export const getPricing = () => request<PricingOverview>("/api/admin/pricing/");
+
+export const updatePricing = (
+  code: string,
+  body: Partial<Record<PricingCurrency, RegionPriceInput>> & { is_recommended?: boolean },
+) => request<PlanPricing>(`/api/admin/pricing/${encodeURIComponent(code)}/`, { method: "PATCH", body: JSON.stringify(body) });
+
 // --- Announcements (notification bars on the customer dashboard and the website) -------------
 
 export type AnnouncementKind = "offer" | "discount" | "news" | "version" | "maintenance";

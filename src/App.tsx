@@ -13,6 +13,7 @@ import { SupportPage } from "./pages/SupportPage";
 import { FormsPage } from "./pages/FormsPage";
 import { ReleasesPage } from "./pages/ReleasesPage";
 import { AnnouncementsPage } from "./pages/AnnouncementsPage";
+import { PricingPage } from "./pages/PricingPage";
 import { ReleaseNotesPage } from "./pages/ReleaseNotesPage";
 import { SubscriptionsPage } from "./pages/SubscriptionsPage";
 import { BlogPage } from "./pages/BlogPage";
@@ -80,6 +81,7 @@ export function App(): ReactElement {
             <Route path="/forms" element={<FormsPage />} />
             <Route path="/releases" element={<ReleasesPage />} />
             <Route path="/announcements" element={<AnnouncementsPage />} />
+            <Route path="/pricing" element={<PricingPage />} />
             <Route path="/whats-new" element={<ReleaseNotesPage />} />
             <Route path="/blog" element={<BlogPage />} />
             <Route path="/blog/subscribers" element={<BlogSubscribersPage />} />
