@@ -7,7 +7,7 @@ import { Marked, type Tokens } from "marked";
 /**
  * Local-only project documentation for the admin's Documentation tab (src/pages/DocsPage.tsx).
  *
- * The docs are Markdown files in the project brain, `<project>/.claude/dev/docs/` (never pushed; the
+ * The docs are Markdown files in the project folder, `<project>/docs/` (never pushed; the
  * public repos never contain them). This plugin runs ONLY under the Vite dev server (`apply: "serve"`),
  * so `vite build` -- what dev/prod servers deploy -- has neither the docs nor these endpoints:
  *   GET /__zinwe_docs/index.json   every page: slug, title, section, headings, plain text (for search)
@@ -18,9 +18,15 @@ function zinweDocs(): Plugin {
   const findDocsDir = (start: string): string | null => {
     let dir = start;
     for (let i = 0; i < 6; i++) {
-      for (const brain of [".claude", ".cloude"]) {
-        const candidate = path.join(dir, brain, "dev", "docs");
-        if (fs.existsSync(candidate) && fs.statSync(candidate).isDirectory()) return candidate;
+      // Since 2026-10-24 the docs are a project folder, `<project>/docs/` (next to zinwe-run.ps1);
+      // the older brain layouts (`.claude/dev/docs`, `.cloude/dev/docs`) still work.
+      const candidates = [
+        path.join(dir, "docs"),
+        path.join(dir, ".claude", "dev", "docs"),
+        path.join(dir, ".cloude", "dev", "docs"),
+      ];
+      for (const candidate of candidates) {
+        if (fs.existsSync(path.join(candidate, "00-overview.md"))) return candidate;
       }
       const parent = path.dirname(dir);
       if (parent === dir) break;

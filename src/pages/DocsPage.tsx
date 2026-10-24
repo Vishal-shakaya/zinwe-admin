@@ -5,7 +5,7 @@ import "../docs.css";
 /**
  * Documentation tab -- LOCAL DEV ONLY. The route and nav item exist only when `import.meta.env.DEV`
  * (see App.tsx / Layout.tsx), and the pages come from the Vite dev server's `zinwe-docs` plugin
- * (vite.config.ts), which reads `<project>/.claude/dev/docs/*.md`. Production builds contain neither.
+ * (vite.config.ts), which reads `<project>/docs/*.md`. Production builds contain neither.
  */
 
 interface DocHeading {
@@ -134,7 +134,7 @@ export default function DocsPage(): ReactElement {
       <div className="card empty">
         <b>No documentation folder found</b>
         <span className="muted">
-          The docs live in the project brain at <code>.claude/dev/docs/</code> next to the app repos. Copy the brain
+          The docs live in the project folder <code>docs/</code> next to the app repos. Copy the docs
           folder to this PC, then reload.
         </span>
       </div>
@@ -206,7 +206,7 @@ export default function DocsPage(): ReactElement {
               </div>
               {current ? (
                 <p className="muted docs__source">
-                  Source: <code>.claude/dev/docs/{current.file}</code> · updated {new Date(current.updated).toLocaleString()}
+                  Source: <code>docs/{current.file}</code> · updated {new Date(current.updated).toLocaleString()}
                 </p>
               ) : null}
             </footer>
