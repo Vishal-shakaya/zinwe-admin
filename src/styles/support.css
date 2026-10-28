@@ -1,0 +1,500 @@
+/* AdminSupport board */
+
+.zsp-sum {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 10px;
+}
+.zsp-sum__card {
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.zsp-sum__k {
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.zsp-sum__v {
+  font-size: 26px;
+  line-height: 1.2;
+}
+
+.zsp-layout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+/* List */
+.zsp-list {
+  flex: 1 1 380px;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.zsp-list__tools {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-bottom: 1px solid var(--line);
+}
+.zsp-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.zsp-chip-n {
+  color: var(--mute);
+}
+.chip.on .zsp-chip-n {
+  color: var(--nav-text);
+}
+.zsp-search {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.zsp-search__q {
+  flex: 1 1 180px;
+  min-width: 0;
+  display: flex;
+}
+.inp.zsp-who {
+  width: auto;
+}
+.zsp-empty {
+  padding: 44px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+}
+.zsp-empty__icon {
+  display: inline-flex;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--fill);
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-2);
+}
+.zsp-empty__sub {
+  max-width: 34ch;
+}
+.zsp-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.zsp-list .clip,
+.zsp-pane .clip {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.zsp-tk {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 3px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 0;
+  border-bottom: 1px solid var(--line-soft);
+  background: transparent;
+  text-align: left;
+}
+.zsp-tk:hover {
+  background: var(--hover);
+}
+.zsp-tk.on {
+  background: #eceef1;
+}
+.zsp-tk__top {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+}
+.zsp-tk__co {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+.zsp-tk__unread {
+  color: var(--link);
+}
+.zsp-tk__company {
+  font-size: 13px;
+}
+.pill.zsp-tk__prio {
+  background: var(--ink);
+  color: #fff;
+  font-size: 11px;
+  padding: 1px 7px;
+}
+.zsp-tk__age {
+  white-space: nowrap;
+}
+.zsp-tk__subj {
+  font-weight: 500;
+  font-size: 14px;
+}
+.zsp-tk__subj.is-unread {
+  font-weight: 700;
+}
+.zsp-tk__first {
+  font-size: 13px;
+  color: var(--ink-3);
+}
+.zsp-tk__foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+  margin-top: 3px;
+}
+.zsp-av {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 700;
+  flex: none;
+}
+.zsp-av--me {
+  background: var(--ink);
+  color: #fff;
+}
+.zsp-av--team {
+  background: #dde3ea;
+  color: #1f3a5a;
+}
+.zsp-av--none {
+  border: 1px dashed #a9acb1;
+  background: transparent;
+}
+
+/* Empty pane */
+.zsp-pick {
+  flex: 999 1 520px;
+  min-width: 0;
+  min-height: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 32px;
+  text-align: center;
+}
+
+/* Conversation */
+.zsp-pane {
+  flex: 999 1 520px;
+  min-width: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.zsp-head {
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.zsp-head__row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+.zsp-head__who {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1 1 300px;
+}
+.zsp-pane .lnk.zsp-back {
+  display: none;
+  gap: 4px;
+  align-self: flex-start;
+}
+.zsp-head__meta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.zsp-stp {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+.zsp-st--open {
+  background: var(--warn-tint);
+  color: var(--warn);
+}
+.zsp-st--answered {
+  background: #e6ecf3;
+  color: #1f3a5a;
+}
+.zsp-st--closed {
+  background: var(--fill-2);
+  color: var(--ink-3);
+}
+.zsp-head__subj {
+  margin: 0;
+  font-size: 19px;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+}
+.zsp-head__person {
+  font-size: 13px;
+  color: var(--ink-3);
+  overflow-wrap: anywhere;
+}
+.zsp-head__person b {
+  color: var(--ink);
+}
+.zsp-head__acts {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+.zsp-asg {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.zsp-asg__k {
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.zsp-asg .inp {
+  width: auto;
+}
+
+.zsp-pane .lnk {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--link);
+  font-weight: 600;
+  font-size: 13px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.zsp-pane .lnk:hover {
+  color: var(--link-hover);
+}
+
+.zsp-ctx {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.zsp-ctx__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.zsp-ctx__h {
+  margin: 0;
+  font-weight: 600;
+}
+.zsp-ctx__loading {
+  display: flex;
+  flex-direction: column;
+}
+.zsp-ctx__grid {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.zsp-ctx__cell {
+  background: var(--hover-2);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.zsp-ctx__v {
+  margin: 0;
+  font-weight: 600;
+  font-size: 14px;
+}
+.zsp-ctx__note {
+  margin: 0;
+}
+.zsp-ctx__note.is-warn {
+  color: var(--warn);
+  font-weight: 600;
+}
+
+/* Thread */
+.zsp-log {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: var(--hover-2);
+}
+.zsp-msg {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: min(560px, 88%);
+  align-self: flex-start;
+  align-items: flex-start;
+}
+.zsp-msg--right {
+  align-self: flex-end;
+  align-items: flex-end;
+}
+.zsp-msg--right .zsp-msg__meta {
+  text-align: right;
+}
+.zsp-bub {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 11px 14px;
+  border-radius: 12px;
+  font-size: 14px;
+}
+.zsp-bub--cust {
+  background: #fff;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-bottom-left-radius: 4px;
+}
+.zsp-bub--staff {
+  background: var(--ink);
+  color: #fff;
+  border-bottom-right-radius: 4px;
+}
+.zsp-bub--note {
+  background: #fbf4dc;
+  color: var(--ink);
+  border: 1px dashed #c9b26a;
+  border-bottom-right-radius: 4px;
+}
+.zsp-bub__note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #5c4a12;
+}
+.zsp-bub__body {
+  margin: 0;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+/* Compose */
+.zsp-compose {
+  padding: 14px 18px 18px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.zsp-compose__top {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+}
+.zsp-saved {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.zsp-saved .inp {
+  width: auto;
+  max-width: 100%;
+}
+.zsp-compose .ta {
+  min-height: 104px;
+  background: #fff;
+}
+.zsp-compose .ta--note {
+  background: #fffcf2;
+  border-color: #c9b26a;
+}
+.zsp-compose__foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+}
+.zsp-compose__hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.zsp-compose__btns {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 900px) {
+  .zsp-pane .lnk.zsp-back {
+    display: inline-flex;
+  }
+}
+@media (max-width: 520px) {
+  .zsp-saved {
+    flex-wrap: wrap;
+  }
+  .zsp-head__acts {
+    width: 100%;
+  }
+  .zsp-msg {
+    max-width: 94%;
+  }
+}
