@@ -1,0 +1,112 @@
+/* AdminLogin board */
+.zlogin {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 40px 16px;
+}
+.zlogin__col {
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.zlogin__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.zlogin__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.zlogin__brandtext {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+.zlogin__brandtext b {
+  font-size: 15px;
+}
+.zlogin__host {
+  font-size: 11px;
+  color: var(--mute);
+}
+.zlogin__card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 28px 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.zlogin__form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.zlogin__head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.zlogin__head h1 {
+  margin: 0;
+  font-size: 22px;
+  letter-spacing: -0.01em;
+}
+.zlogin__head p {
+  margin: 0;
+  color: var(--ink-3);
+}
+.zlogin__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.zlogin__field label {
+  font-weight: 600;
+  font-size: 13px;
+}
+.zlogin__pw {
+  position: relative;
+  display: flex;
+}
+.zlogin__show {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  min-height: 36px;
+  padding: 0 6px;
+  text-decoration: none;
+}
+.zlogin__code {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  letter-spacing: 0.4em;
+  text-align: center;
+  min-height: 52px;
+}
+.zlogin__ok {
+  display: inline-flex;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--good-tint);
+  color: var(--good);
+  align-items: center;
+  justify-content: center;
+}
+.zlogin__foot {
+  margin: 0;
+  text-align: center;
+}

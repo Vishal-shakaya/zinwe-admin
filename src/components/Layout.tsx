@@ -1,32 +1,61 @@
-import { useEffect, useState, type ReactElement, type ReactNode } from "react";
-import { NavLink, useLocation } from "react-router-dom";
+import { useEffect, useRef, useState, type ReactElement, type ReactNode } from "react";
+import { Link, NavLink, useLocation } from "react-router-dom";
 import { getBadges, type AdminMe } from "../lib/api";
 import { BADGES_EVENT } from "../lib/badges";
-import { BrandLogo } from "./BrandLogo";
+import { envHost, switchEnv, useAdminEnv } from "../lib/env";
+import { LOGS_NEED_ATTENTION } from "../content/fixtures/nav";
+import { Icon, type IconName } from "./icons";
+import { Modal } from "./Modal";
 
-type BadgeKey = "payments_waiting" | "support_waiting" | "forms_new";
+type BadgeKey = "payments_waiting" | "support_waiting" | "forms_new" | "feedback_unread";
 
 interface NavItem {
   to: string;
   label: string;
+  icon: IconName;
   end?: boolean;
   badge?: BadgeKey;
   /** Read after the count by screen readers: "2 payments to check". */
   badgeLabel?: string;
+  /** Yellow badge (money waiting) instead of the light one. */
+  warn?: boolean;
+  /** A red "needs attention" dot instead of a count. */
+  dot?: boolean;
 }
 
-const NAV: NavItem[] = [
-  { to: "/", label: "Dashboard", end: true },
-  { to: "/subscribers", label: "Subscribers", badge: "payments_waiting", badgeLabel: "payments to check" },
-  { to: "/subscriptions", label: "Subscriptions" },
-  { to: "/pricing", label: "Plans & pricing" },
-  { to: "/feedback", label: "Feedback" },
-  { to: "/support", label: "Support", badge: "support_waiting", badgeLabel: "waiting for an answer" },
-  { to: "/forms", label: "Forms", badge: "forms_new", badgeLabel: "new form submissions" },
-  { to: "/announcements", label: "Announcements" },
-  { to: "/whats-new", label: "What's new" },
-  { to: "/releases", label: "Releases" },
-  { to: "/blog", label: "Blog" },
+interface NavGroup {
+  label: string;
+  items: NavItem[];
+}
+
+const GROUPS: NavGroup[] = [
+  { label: "OVERVIEW", items: [{ to: "/", label: "Dashboard", icon: "dashboard", end: true }] },
+  {
+    label: "CUSTOMERS",
+    items: [
+      { to: "/subscribers", label: "Subscribers", icon: "subscribers", badge: "payments_waiting", badgeLabel: "payments to check", warn: true },
+      { to: "/subscriptions", label: "Subscriptions", icon: "subscriptions" },
+      { to: "/pricing", label: "Plans & pricing", icon: "pricing" },
+    ],
+  },
+  {
+    label: "INBOX",
+    items: [
+      { to: "/support", label: "Support", icon: "support", badge: "support_waiting", badgeLabel: "waiting for an answer" },
+      { to: "/feedback", label: "Feedback", icon: "feedback", badge: "feedback_unread", badgeLabel: "unread" },
+      { to: "/forms", label: "Forms", icon: "forms", badge: "forms_new", badgeLabel: "new" },
+    ],
+  },
+  {
+    label: "PUBLISH",
+    items: [
+      { to: "/announcements", label: "Announcements", icon: "announcements" },
+      { to: "/whats-new", label: "What’s new", icon: "whatsnew" },
+      { to: "/releases", label: "Releases", icon: "releases" },
+      { to: "/blog", label: "Blog", icon: "blog" },
+    ],
+  },
+  { label: "SYSTEM", items: [{ to: "/logs", label: "Logs", icon: "logs", dot: true }] },
 ];
 
 const BADGE_REFRESH_MS = 60_000;
@@ -82,6 +111,72 @@ function useDocsAvailable(): boolean {
   return ok;
 }
 
+function initials(name: string): string {
+  const parts = name
+    .replace(/@.*/, "")
+    .split(/[\s._-]+/)
+    .filter(Boolean);
+  const two = (parts[0]?.[0] ?? "") + (parts.length > 1 ? parts[parts.length - 1][0] : (parts[0]?.[1] ?? ""));
+  return two.toUpperCase() || "?";
+}
+
+/** "Vishal Shakaya" -> "Vishal S" (the board's short form). */
+function shortName(me: AdminMe): string {
+  const full = (me.full_name || "").trim();
+  if (!full) return me.email.replace(/@.*/, "");
+  const parts = full.split(/\s+/);
+  return parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1][0]}` : parts[0];
+}
+
+/** The environment switch dialog (AdminNav board copy, word for word). */
+function EnvSwitchDialog({ prod, onClose }: { prod: boolean; onClose: () => void }): ReactElement {
+  const ask = prod
+    ? {
+        title: "Switch this session to Dev?",
+        body: "You’ll work on dev.admin.zinwe.io with test data. Nothing you do there reaches customers. The whole screen gets an orange frame while you’re on Dev.",
+        fact: "Every admin page you open stays on Dev until you switch back or sign out.",
+        warn: false,
+        stay: "Stay on Production",
+        go: "Switch to Dev",
+      }
+    : {
+        title: "Go back to Production?",
+        body: "From here on, every save, approval, price change and release reaches real customers at once.",
+        fact: "Finish or throw away your Dev work first. Nothing moves from Dev to Production by itself.",
+        warn: true,
+        stay: "Stay on Dev",
+        go: "Switch to Production",
+      };
+  return (
+    <Modal
+      title={ask.title}
+      size="small"
+      role="alertdialog"
+      onClose={onClose}
+      footer={
+        <>
+          <button type="button" className="btn" onClick={onClose}>
+            {ask.stay}
+          </button>
+          <button
+            type="button"
+            className="btn dark"
+            onClick={() => {
+              switchEnv(prod ? "dev" : "prod");
+              onClose();
+            }}
+          >
+            {ask.go}
+          </button>
+        </>
+      }
+    >
+      <p style={{ margin: 0, color: "var(--ink-2)" }}>{ask.body}</p>
+      <p className={"confirm__note" + (ask.warn ? " warn" : "")}>{ask.fact}</p>
+    </Modal>
+  );
+}
+
 export function Layout({
   me,
   onSignOut,
@@ -93,46 +188,137 @@ export function Layout({
 }): ReactElement {
   const badges = useBadges();
   const docs = useDocsAvailable();
-  const items: NavItem[] = docs ? [...NAV, { to: "/docs", label: "Documentation" }] : NAV;
+  const env = useAdminEnv();
+  const prod = env === "prod";
+  const [asking, setAsking] = useState(false);
+  const [open, setOpen] = useState(false);
+  const { pathname } = useLocation();
+  const menuRef = useRef<HTMLButtonElement>(null);
+
+  // Phones: the menu closes after you pick a page.
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
+
+  const groups: NavGroup[] = docs
+    ? GROUPS.map((g) => (g.label === "SYSTEM" ? { ...g, items: [...g.items, { to: "/docs", label: "Documentation", icon: "docs" as const }] } : g))
+    : GROUPS;
 
   return (
-    <div className="shell">
-      <aside className="side">
-        <BrandLogo />
-        <nav className="nav" aria-label="Back office">
-          {items.map((item) => {
-            const count = item.badge ? (badges[item.badge] ?? 0) : 0;
-            return (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                end={item.end}
-                className={({ isActive }) => `nav__link${isActive ? " is-active" : ""}`}
-              >
-                <span>{item.label}</span>
-                {count > 0 ? (
-                  <span className="nav__badge">
-                    {count}
-                    <span className="sr-only"> {item.badgeLabel}</span>
+    <div className={"zshell" + (prod ? "" : " is-dev")}>
+      <div className="zshell__nav">
+        <nav className={"zan" + (open ? " is-open" : "")} aria-label="Back office">
+          <div className="zan__sticky">
+            <div className="zan__top">
+              <div className="zan__brandrow">
+                <Link to="/" className="zan__brand">
+                  <span className="ztile" aria-hidden="true">
+                    Z
                   </span>
-                ) : null}
-              </NavLink>
-            );
-          })}
-        </nav>
-        <div className="side__foot">
-          <div className="who">
-            <b>{me.full_name || me.email}</b>
-            <small>{me.email}</small>
+                  <span className="zan__brandtext">
+                    <b>Zinwe staff</b>
+                    <span className="zan__host">{envHost()}</span>
+                  </span>
+                </Link>
+                <button
+                  ref={menuRef}
+                  type="button"
+                  className="zan__menu-btn"
+                  aria-expanded={open}
+                  onClick={() => setOpen((v) => !v)}
+                >
+                  <Icon name={open ? "close" : "menu"} />
+                  {open ? "Close" : "Menu"}
+                </button>
+              </div>
+              <section aria-label="Environment for this session" className={"zan__env" + (prod ? "" : " is-dev")}>
+                <div className="zan__envrow">
+                  <span className="zan__envtext">
+                    <span className="zan__envlabel">THIS SESSION</span>
+                    <b className="zan__envname">
+                      <span aria-hidden="true" className="dot" />
+                      {prod ? "Production" : "Dev"}
+                    </b>
+                  </span>
+                  <button type="button" className="zan-sw" aria-haspopup="dialog" onClick={() => setAsking(true)}>
+                    {prod ? "Switch to Dev…" : "Back to Prod…"}
+                  </button>
+                </div>
+                <span className="zan__envnote">
+                  {prod ? "Changes reach real customers." : "Test data only. Customers see nothing you do here."}
+                </span>
+              </section>
+            </div>
+
+            <div className="zan__groups">
+              {groups.map((g) => (
+                <div key={g.label} className="zan__group">
+                  <span className="zan__glabel">{g.label}</span>
+                  {g.items.map((item) => {
+                    const count = item.badge ? (badges[item.badge] ?? 0) : 0;
+                    const showDot = item.dot && LOGS_NEED_ATTENTION;
+                    return (
+                      <NavLink
+                        key={item.to}
+                        to={item.to}
+                        end={item.end}
+                        className={({ isActive }) => "zan-link" + (isActive ? " is-active" : "")}
+                      >
+                        <Icon name={item.icon} size={18} />
+                        <span className="zan-link__label">{item.label}</span>
+                        {count > 0 ? (
+                          <span className={"zan__badge" + (item.warn ? " warn" : "")}>
+                            {count}
+                            <span className="sr"> {item.badgeLabel}</span>
+                          </span>
+                        ) : null}
+                        {showDot ? (
+                          <span style={{ display: "inline-flex", alignItems: "center" }}>
+                            <span aria-hidden="true" className="zan__dot" />
+                            <span className="sr">, needs attention</span>
+                          </span>
+                        ) : null}
+                      </NavLink>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+
+            <div className="zan__foot">
+              <div className="zan__who">
+                <span aria-hidden="true" className="zan__avatar">
+                  {initials(me.full_name || me.email)}
+                </span>
+                <span className="zan__whotext">
+                  <span className="zan__whoname">
+                    <b>{shortName(me)}</b>
+                    <span className="zan__role">Staff</span>
+                  </span>
+                  <span className="zan__email">{me.email}</span>
+                </span>
+              </div>
+              <button type="button" className="zan-out" onClick={onSignOut}>
+                <Icon name="signOut" />
+                Sign out
+              </button>
+            </div>
           </div>
-          <button type="button" className="btn btn--ghost" onClick={onSignOut}>
-            Sign out
-          </button>
+        </nav>
+      </div>
+
+      <main className="zmain">{children}</main>
+
+      {!prod ? (
+        <div>
+          <div aria-hidden="true" className="zdev-frame" />
+          <div role="note" className="zdev-note">
+            DEV — changes here don’t touch customers
+          </div>
         </div>
-      </aside>
-      <main className="main">
-        <div className="main__inner">{children}</div>
-      </main>
+      ) : null}
+
+      {asking ? <EnvSwitchDialog prod={prod} onClose={() => setAsking(false)} /> : null}
     </div>
   );
 }

@@ -48,14 +48,15 @@ export function ConfirmDialog({
       title={title}
       onClose={onClose}
       size="small"
+      role="alertdialog"
       footer={
         <>
-          <button type="button" className="btn btn--ghost" disabled={busy} onClick={onClose}>
+          <button type="button" className="btn" disabled={busy} onClick={onClose}>
             Cancel
           </button>
           <button
             type="button"
-            className={"btn " + (danger ? "btn--danger" : "btn--primary")}
+            className={"btn " + (danger ? "danger-fill" : "dark")}
             disabled={busy || locked}
             onClick={() => void go()}
           >
@@ -72,7 +73,7 @@ export function ConfirmDialog({
         </label>
       ) : null}
       {error ? (
-        <p className="alert alert--bad" role="alert">
+        <p className="err-box" role="alert">
           {error}
         </p>
       ) : null}
