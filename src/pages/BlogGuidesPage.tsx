@@ -1,5 +1,4 @@
 import { useCallback, useRef, useState, type ReactElement } from "react";
-import { Link } from "react-router-dom";
 import {
   createGuide,
   deleteGuide,
@@ -16,9 +15,11 @@ import { date } from "../lib/format";
 import { useLoad } from "../lib/useLoad";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Modal } from "../components/Modal";
-import { PageHeader } from "../components/PageHeader";
+import { EmptyState, ErrorState, LoadingState } from "../components/States";
+import { Icon } from "../components/icons";
 import { useToast } from "../components/Toast";
 import { portalUrl } from "../content/emailTemplates";
+import { BlogHeader, staleBlogCounts } from "./blog/shared";
 import "../blog.css";
 
 /** "a | b" lines <-> [{a, b}] (contents: title | note; highlights: value | label). */
@@ -30,9 +31,15 @@ const fromLines = (text: string, a: string, b: string) =>
     .filter((p) => p[0])
     .map((p) => ({ [a]: p[0], [b]: p.slice(1).join(" | ") }));
 
+/** The guide's topic line (board: "ONLINE", "DATA" …): its first tag, else its tracking code. */
+function topicOf(g: Guide): string {
+  const tag = g.tags.split(",").map((t) => t.trim()).find(Boolean);
+  return tag || g.campaign.replace(/^guide-/, "") || "Guide";
+}
+
 /**
- * Free e-guides (PDF) at /blog/guides: the public page shows the cover, contents and sample pages; the PDF downloads
- * for members of the free membership (the newsletter list). Matched guides also appear on blog articles and episodes.
+ * Blog → Guides (AdminBlog board): free e-guides (PDF). The page is public; the PDF downloads for members of the
+ * free membership (the newsletter list). Each guide has follow-up emails that go out only once approved.
  */
 export function BlogGuidesPage(): ReactElement {
   const load = useCallback(() => listGuides(), []);
@@ -41,20 +48,24 @@ export function BlogGuidesPage(): ReactElement {
   const [editing, setEditing] = useState<Guide | "new" | null>(null);
   const [removing, setRemoving] = useState<Guide | null>(null);
   const [approving, setApproving] = useState<Guide | null>(null);
+  const [testing, setTesting] = useState<number | null>(null);
 
   const testEmails = async (g: Guide) => {
+    setTesting(g.id);
     try {
       const r = await testGuideFollowups(g.id);
       toast(`Sent ${r.sent} of ${r.of} test emails to ${r.to}.`);
     } catch (err) {
       toast(err instanceof Error ? err.message : "Couldn't send the tests.", "bad");
+    } finally {
+      setTesting(null);
     }
   };
 
   const setFollowups = async (g: Guide, on: boolean) => {
     try {
       await updateGuide(g.id, { followups_enabled: on });
-      toast(on ? "Follow-up emails on." : "Follow-up emails off.");
+      toast(on ? `Follow-up emails approved for ${g.title}.` : "Follow-up emails off.");
       list.reload();
     } catch (err) {
       toast(err instanceof Error ? err.message : "Couldn't change it.", "bad");
@@ -73,99 +84,140 @@ export function BlogGuidesPage(): ReactElement {
 
   return (
     <>
-      <PageHeader
-        title="Guides"
-        subtitle="Free e-guides. The page is public; the PDF downloads for members (one email unlocks every guide and the series)."
-        onReload={list.reload}
-        pending={list.pending}
-      >
-        <Link className="btn btn--ghost" to="/blog">
-          ← Articles
-        </Link>
-        <button type="button" className="btn btn--primary" onClick={() => setEditing("new")}>
-          New guide
-        </button>
-      </PageHeader>
+      <BlogHeader
+        known={{ guides: list.data?.length }}
+        action={
+          <button type="button" className="btn dark" onClick={() => setEditing("new")}>
+            <Icon name="plus" />
+            New guide
+          </button>
+        }
+      />
 
       {list.error ? (
-        <p className="alert alert--bad">{list.error}</p>
+        <ErrorState message={list.error} onRetry={list.reload} />
       ) : !list.data ? (
-        <p className="muted">Loading…</p>
+        <LoadingState rows={6} label="Loading guides…" />
       ) : list.data.length === 0 ? (
-        <div className="card empty">
-          <b>No guides yet</b>
-          <span className="muted">Add a guide, upload its PDF and cover, then make it live.</span>
+        <div className="card">
+          <EmptyState
+            icon="download"
+            title="No guides yet"
+            body="Add a guide, upload its PDF and cover, then make it live."
+            action={
+              <button type="button" className="btn dark sm" onClick={() => setEditing("new")}>
+                New guide
+              </button>
+            }
+          />
         </div>
       ) : (
-        <div className="series-grid">
-          {list.data.map((g) => (
-            <article key={g.id} className="card series-card guide-card">
-              {g.cover ? <img className="guide-card__cover" src={g.cover.url} alt="" /> : <div className="guide-card__cover is-empty" />}
-              <div className="series-card__body">
-                <div className="series-card__top">
-                  <h3>{g.title}</h3>
-                  <span className={"pill " + (g.status === "published" ? "pill--good" : "pill--muted")}>
-                    {g.status === "published" ? "Live" : "Draft"}
-                  </span>
-                </div>
-                <p className="series-card__meta">
-                  {g.page_count || "?"} pages · {g.has_file ? `PDF ${Math.round(g.size / 1024)} KB` : "no PDF yet"} · {g.campaign || "no tracking code"} ·
-                  updated {date(g.updated_at)}
-                </p>
-                <div className="series-kpis guide-kpis">
-                  <div><b>{g.stats.joined_on_page}</b><span>joined on its page</span></div>
-                  <div><b>{g.stats.members_downloaded}</b><span>members downloaded</span></div>
-                  <div><b>{g.stats.downloads}</b><span>downloads</span></div>
-                  <div><b>{g.stats.signups}</b><span>Zinwe sign-ups</span></div>
-                </div>
-                {g.followups.length ? (
-                  <div className={"guide-followups" + (g.followups_enabled ? " is-on" : "")}>
-                    <p>
-                      <b>Follow-up emails: {g.followups_enabled ? "on" : "off"}</b>{" "}
-                      <span className="muted">after a member's first download, from 09:00 their time, max one Zinwe email a day</span>
-                    </p>
-                    <ol>
-                      {g.followup_stats.map((s) => (
-                        <li key={s.day + s.subject}>
-                          <span className="mono">Day {s.day}</span> {s.subject} <small className="muted">· sent {s.sent}</small>
-                        </li>
-                      ))}
-                    </ol>
-                    <div className="side-card__row">
-                      <button type="button" className="link-btn" onClick={() => void testEmails(g)}>
-                        Send me the test emails
-                      </button>
-                      {g.followups_enabled ? (
-                        <button type="button" className="link-btn link-btn--danger" onClick={() => void setFollowups(g, false)}>
-                          Turn off
-                        </button>
-                      ) : (
-                        <button type="button" className="link-btn" onClick={() => setApproving(g)}>
-                          Approve and turn on
-                        </button>
-                      )}
+        <div className="bl-guides">
+          {list.data.map((g) => {
+            const sentOf = (day: number) => g.followup_stats.find((x) => x.day === day)?.sent ?? 0;
+            const n = g.followups.length;
+            return (
+              <section key={g.id} className="card bl-guide" aria-label={g.title}>
+                <div className="bl-guide__top">
+                  {g.cover ? <img className="bl-guide__cover" src={g.cover.url} alt="" /> : <div className="bl-ph bl-guide__cover" aria-hidden="true" />}
+                  <div className="bl-guide__text">
+                    <div className="bl-guide__topic">
+                      <span className="k bl-caps">{topicOf(g)}</span>
+                      <span className={"pill " + (g.status === "published" ? "good" : "bl-st--draft")}>
+                        <span className="dot" />
+                        {g.status === "published" ? "Live" : "Draft"}
+                      </span>
                     </div>
+                    <h2>{g.title}</h2>
+                    <span className="k">{g.has_file ? `PDF · ${g.page_count} pages` : "No PDF yet"}</span>
                   </div>
+                  <dl className="bl-guide__kpis">
+                    <div>
+                      <dt className="k">Downloads</dt>
+                      <dd className="num">{g.stats.downloads.toLocaleString("en-IN")}</dd>
+                    </div>
+                    <div>
+                      <dt className="k">Sign-ups</dt>
+                      <dd className="num">{g.stats.signups.toLocaleString("en-IN")}</dd>
+                    </div>
+                  </dl>
+                </div>
+
+                {n ? (
+                  <>
+                    <div className="bl-guide__fu">
+                      <div className="bl-col" style={{ gap: 2 }}>
+                        <span className="lab">
+                          Follow-up emails{" "}
+                          <span className="k" style={{ fontWeight: 400 }}>
+                            · {g.followups_enabled ? n : 0} of {n} approved
+                          </span>
+                        </span>
+                        <span className="k">After a member's first download, from 09:00 their time.</span>
+                      </div>
+                      <div className="bl-inline">
+                        <div className="seg sm" role="group" aria-label={`Follow-up emails for ${g.title}`}>
+                          <button
+                            type="button"
+                            className={g.followups_enabled ? "on" : ""}
+                            aria-pressed={g.followups_enabled}
+                            onClick={() => (g.followups_enabled ? undefined : setApproving(g))}
+                          >
+                            Approved
+                          </button>
+                          <button
+                            type="button"
+                            className={g.followups_enabled ? "" : "off"}
+                            aria-pressed={!g.followups_enabled}
+                            onClick={() => (g.followups_enabled ? void setFollowups(g, false) : undefined)}
+                          >
+                            Off
+                          </button>
+                        </div>
+                        <button type="button" className="btn sm" disabled={testing === g.id} onClick={() => void testEmails(g)}>
+                          {testing === g.id ? "Sending…" : "Send test"}
+                        </button>
+                      </div>
+                    </div>
+                    <ul className="bl-mails">
+                      {g.followups.map((m) => {
+                        const sent = sentOf(m.day);
+                        return (
+                          <li key={m.day + m.subject}>
+                            <span className="mono bl-mails__day">Day {m.day}</span>
+                            <span className="bl-mails__subj">
+                              <span>{m.subject}</span>
+                              <span className="k num">{sent ? `sent ${sent.toLocaleString("en-IN")}` : "not sent yet"}</span>
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </>
                 ) : null}
-                <div className="side-card__row">
-                  <button type="button" className="link-btn" onClick={() => setEditing(g)}>
+
+                <div className="bl-guide__acts">
+                  <button type="button" className="btn sm" onClick={() => setEditing(g)}>
                     Edit
                   </button>
-                  <button type="button" className="link-btn" onClick={() => void toggle(g)}>
+                  <button type="button" className="btn sm" onClick={() => void toggle(g)}>
                     {g.status === "published" ? "Hide" : "Make live"}
                   </button>
                   {g.status === "published" ? (
-                    <a className="link-btn" href={`${portalUrl()}/blog/guides/${g.slug}`} target="_blank" rel="noreferrer">
+                    <a className="btn sm" href={`${portalUrl()}/blog/guides/${g.slug}`} target="_blank" rel="noreferrer">
                       View ↗
                     </a>
                   ) : null}
-                  <button type="button" className="link-btn link-btn--danger" onClick={() => setRemoving(g)}>
+                  <button type="button" className="btn sm danger" onClick={() => setRemoving(g)}>
                     Delete
                   </button>
+                  <span className="k bl-guide__meta">
+                    {g.has_file ? `${Math.round(g.size / 1024)} KB` : "no PDF"} · {g.campaign || "no tracking code"} · updated {date(g.updated_at)}
+                  </span>
                 </div>
-              </div>
-            </article>
-          ))}
+              </section>
+            );
+          })}
         </div>
       )}
 
@@ -175,6 +227,7 @@ export function BlogGuidesPage(): ReactElement {
           onClose={() => setEditing(null)}
           onSaved={() => {
             setEditing(null);
+            staleBlogCounts();
             list.reload();
           }}
         />
@@ -190,8 +243,9 @@ export function BlogGuidesPage(): ReactElement {
           }}
         >
           <p>
-            Members who download <b>{approving.title}</b> will get {approving.followups.length} emails over {Math.max(...approving.followups.map((f) => f.day))}{" "}
-            days, starting with members who download it from now on (earlier downloads get none). Send yourself the test emails first if you haven't read them.
+            Members who download <b>{approving.title}</b> will get {approving.followups.length} emails over{" "}
+            {Math.max(...approving.followups.map((f) => f.day))} days, starting with members who download it from now on (earlier downloads get
+            none). Send yourself the test emails first if you haven't read them.
           </p>
         </ConfirmDialog>
       ) : null}
@@ -204,6 +258,7 @@ export function BlogGuidesPage(): ReactElement {
           onClose={() => setRemoving(null)}
           onConfirm={async () => {
             await deleteGuide(removing.id);
+            staleBlogCounts();
             toast("Guide deleted.");
             list.reload();
           }}
@@ -321,10 +376,10 @@ function GuideEditor({ guide, onClose, onSaved }: { guide: Guide | null; onClose
       onClose={onClose}
       footer={
         <>
-          <button type="button" className="btn btn--ghost" onClick={onClose}>
+          <button type="button" className="btn" onClick={onClose}>
             Cancel
           </button>
-          <button type="button" className="btn btn--primary" disabled={!!busy} onClick={() => void save(true)}>
+          <button type="button" className="btn dark" disabled={!!busy} onClick={() => void save(true)}>
             {busy === "save" ? "Saving…" : "Save"}
           </button>
         </>
@@ -389,7 +444,7 @@ function GuideEditor({ guide, onClose, onSaved }: { guide: Guide | null; onClose
         <div className="editor__field">
           <span>PDF <small>the guide itself, up to 9 MB (members' download)</small></span>
           <div className="side-card__row">
-            <button type="button" className="btn btn--ghost btn--sm" disabled={!!busy} onClick={() => pdfInput.current?.click()}>
+            <button type="button" className="btn sm" disabled={!!busy} onClick={() => pdfInput.current?.click()}>
               {busy === "pdf" ? "Uploading…" : current?.has_file ? "Replace the PDF" : "Upload the PDF"}
             </button>
             {current?.has_file ? <small className="muted">{current.page_count} pages · {Math.round(current.size / 1024)} KB · {current.filename}</small> : null}

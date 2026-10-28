@@ -1,147 +1,229 @@
 import { useCallback, useMemo, useState, type ReactElement } from "react";
-import { Link } from "react-router-dom";
 import { deleteSubscriber, listSubscribers, type Subscriber, type SubscriberStatus } from "../lib/blogApi";
-import { date } from "../lib/format";
 import { useLoad } from "../lib/useLoad";
-import { PageHeader } from "../components/PageHeader";
 import { ConfirmDialog } from "../components/ConfirmDialog";
+import { EmptyState, ErrorState, LoadingState } from "../components/States";
+import { Icon } from "../components/icons";
 import { useToast } from "../components/Toast";
+import { BlogHeader, dayMonth, dayMonthYear, downloadCsv, staleBlogCounts, todayStamp } from "./blog/shared";
 import "../blog.css";
 
-const STATUS: Record<SubscriberStatus, { label: string; tone: string; hint: string }> = {
-  active: { label: "Subscribed", tone: "pill--good", hint: "Confirmed: gets the emails" },
-  pending: { label: "Not confirmed", tone: "pill--warn", hint: "Signed up, hasn't clicked the confirmation link" },
-  unsubscribed: { label: "Unsubscribed", tone: "pill--muted", hint: "Gets nothing" },
+const STATUS: Record<SubscriberStatus, { label: string; tone: string }> = {
+  active: { label: "Confirmed", tone: "good" },
+  pending: { label: "Not confirmed", tone: "warn" },
+  unsubscribed: { label: "Unsubscribed", tone: "bl-st--gone" },
 };
-const TABS: ("all" | SubscriberStatus)[] = ["all", "active", "pending", "unsubscribed"];
+const FILTERS: ("all" | SubscriberStatus)[] = ["all", "active", "pending", "unsubscribed"];
 
-/** Who signed up for the blog newsletter on the website (double opt-in), and where. */
+type Source = "Blog" | "Series" | "Guide";
+/** Where the sign-up came from, from the page it was made on (the API stores the page/source string). */
+function sourceOf(s: Subscriber): Source {
+  const v = s.source.toLowerCase();
+  if (v.includes("guide")) return "Guide";
+  if (v.includes("series") || v.includes("ref=") || v.includes("episode")) return "Series";
+  return "Blog";
+}
+const SOURCE_NOTE: Record<Source, [string, string]> = {
+  Blog: ["Blog", "articles and the blog page"],
+  Series: ["The series", "series pages and ref links"],
+  Guide: ["Guides", "guide downloads"],
+};
+
+const DAY = 86_400_000;
+
+/** Blog → Subscribers (AdminBlog board): who signed up for the newsletter (double opt-in), where, and erase. */
 export function BlogSubscribersPage(): ReactElement {
   const toast = useToast();
   const load = useCallback(() => listSubscribers(), []);
   const list = useLoad(load);
-  const [tab, setTab] = useState<"all" | SubscriberStatus>("all");
+  const [filter, setFilter] = useState<"all" | SubscriberStatus>("all");
   const [query, setQuery] = useState("");
   const [removing, setRemoving] = useState<Subscriber | null>(null);
 
-  const rows = list.data?.rows ?? [];
+  const rows = useMemo(() => list.data?.rows ?? [], [list.data]);
   const counts = list.data?.counts;
-  const shown = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return rows.filter((s) => (tab === "all" || s.status === tab) && (!q || s.email.includes(q) || s.source.includes(q)));
-  }, [rows, tab, query]);
+  const q = query.trim().toLowerCase();
+  const shown = rows.filter((s) => (filter === "all" || s.status === filter) && (!q || `${s.email} ${s.source}`.toLowerCase().includes(q)));
+
+  const confirmed = rows.filter((s) => s.status === "active");
+  const thisWeek = confirmed.filter((s) => s.confirmed_at && Date.now() - new Date(s.confirmed_at).getTime() < 7 * DAY).length;
+
+  // New confirmed subscribers per week, last 8 weeks (weeks end today).
+  const grow = useMemo(() => {
+    const now = Date.now();
+    return Array.from({ length: 8 }, (_, i) => {
+      const end = now - (7 - i) * 7 * DAY;
+      const start = end - 7 * DAY;
+      const n = confirmed.filter((s) => {
+        const t = s.confirmed_at ? new Date(s.confirmed_at).getTime() : NaN;
+        return t > start && t <= end;
+      }).length;
+      return { n, label: dayMonth(new Date(start + DAY).toISOString()) };
+    });
+  }, [confirmed]);
+  const growMax = Math.max(1, ...grow.map((w) => w.n));
+
+  const sources = (["Blog", "Series", "Guide"] as Source[]).map((k) => ({ key: k, n: confirmed.filter((s) => sourceOf(s) === k).length }));
+  const total = Math.max(1, confirmed.length);
+
+  const exportCsv = () => {
+    downloadCsv(
+      `zinwe-subscribers-${todayStamp()}.csv`,
+      ["Email", "Status", "Signed up on", "Source", "Joined", "Confirmed"],
+      shown.map((s) => [s.email, STATUS[s.status].label, s.source, sourceOf(s), s.created_at.slice(0, 10), s.confirmed_at?.slice(0, 10) ?? ""]),
+    );
+    toast(`Exported ${shown.length} subscribers to zinwe-subscribers-${todayStamp()}.csv`);
+  };
 
   return (
     <>
-      <PageHeader
-        title="Newsletter subscribers"
-        subtitle="People who signed up on the website's blog. Only confirmed ones get emails; every email has an unsubscribe link."
-        onReload={list.reload}
-        pending={list.pending}
-      >
-        <input
-          type="search"
-          className="search"
-          placeholder="Search email or page"
-          aria-label="Search subscribers"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
-        <Link className="btn btn--ghost" to="/blog">
-          ← Blog
-        </Link>
-      </PageHeader>
-
-      {counts ? (
-        <div className="subs-stats">
-          {(["active", "pending", "unsubscribed"] as SubscriberStatus[]).map((k) => (
-            <div key={k} className="card subs-stat" title={STATUS[k].hint}>
-              <b>{counts[k]}</b>
-              <span>{STATUS[k].label}</span>
-            </div>
-          ))}
-        </div>
-      ) : null}
-
-      <div className="tabs" role="tablist" aria-label="Status">
-        {TABS.map((k) => (
-          <button
-            key={k}
-            type="button"
-            role="tab"
-            aria-selected={tab === k}
-            className={"tab" + (tab === k ? " is-active" : "")}
-            onClick={() => setTab(k)}
-          >
-            {k === "all" ? "All" : STATUS[k].label}
-            {counts ? <span className="tab__count">{k === "all" ? rows.length : counts[k]}</span> : null}
+      <BlogHeader
+        known={{ subscribers: counts?.active }}
+        action={
+          <button type="button" className="btn dark" onClick={exportCsv} disabled={!list.data}>
+            <Icon name="download" />
+            Export CSV
           </button>
-        ))}
-      </div>
+        }
+      />
 
       {list.error ? (
-        <p className="alert alert--bad">{list.error}</p>
-      ) : !list.data ? (
-        <p className="muted">Loading…</p>
-      ) : rows.length === 0 ? (
-        <div className="card empty">
-          <b>No subscribers yet</b>
-          <span className="muted">
-            The sign-up box is on the website's blog and under every article. New sign-ups get a confirmation email first.
-          </span>
-        </div>
+        <ErrorState message={list.error} onRetry={list.reload} />
+      ) : !list.data || !counts ? (
+        <LoadingState rows={6} label="Loading subscribers…" />
       ) : (
-        <div className="card table-card">
-          <table className="sheet">
-            <thead>
-              <tr>
-                <th>Email</th>
-                <th>Status</th>
-                <th>Signed up on</th>
-                <th>Joined</th>
-                <th>Confirmed</th>
-                <th aria-label="Actions" />
-              </tr>
-            </thead>
-            <tbody>
-              {shown.map((s) => (
-                <tr key={s.id}>
-                  <td>
-                    <b>{s.email}</b>
-                  </td>
-                  <td>
-                    <span className={"pill " + STATUS[s.status].tone} title={STATUS[s.status].hint}>
-                      {STATUS[s.status].label}
+        <>
+          <section aria-label="Totals" className="bl-totals">
+            <div className="card bl-stat">
+              <span className="k">Confirmed</span>
+              <b className="num">{counts.active.toLocaleString("en-IN")}</b>
+              <span className="k">Gets the emails · +{thisWeek} this week</span>
+            </div>
+            <div className="card bl-stat">
+              <span className="k">Not confirmed</span>
+              <b className="num">{counts.pending.toLocaleString("en-IN")}</b>
+              <span className="k">Signed up, hasn't clicked the link</span>
+            </div>
+            <div className="card bl-stat">
+              <span className="k">Unsubscribed</span>
+              <b className="num">{counts.unsubscribed.toLocaleString("en-IN")}</b>
+              <span className="k">Gets nothing</span>
+            </div>
+          </section>
+
+          <div className="bl-two">
+            <section className="card bl-panel" aria-labelledby="gr-h">
+              <div className="bl-panel__head">
+                <h2 id="gr-h">New confirmed subscribers</h2>
+                <span className="k">Per week · last 8 weeks</span>
+              </div>
+              <div
+                role="img"
+                aria-label={`New confirmed subscribers per week: ${grow.map((w) => `${w.label} ${w.n}`).join(", ")}`}
+                className="bl-grow-chart"
+              >
+                {grow.map((w) => (
+                  <div key={w.label} className="bl-grow-col">
+                    <span className="k num">{w.n}</span>
+                    <span className="bl-grow-bar" style={{ height: Math.max(2, Math.round((w.n / growMax) * 110)) }} />
+                  </div>
+                ))}
+              </div>
+              <div className="bl-grow-x">
+                {grow.map((w) => (
+                  <span key={w.label} className="k">
+                    {w.label}
+                  </span>
+                ))}
+              </div>
+            </section>
+            <section className="card bl-panel" aria-labelledby="src-h">
+              <div className="bl-panel__head">
+                <h2 id="src-h">Where they signed up</h2>
+                <span className="k">Confirmed subscribers</span>
+              </div>
+              {sources.map((r) => (
+                <div key={r.key} className="bl-src">
+                  <div className="bl-src__row">
+                    <span>
+                      <b>{SOURCE_NOTE[r.key][0]}</b> <span className="k">{SOURCE_NOTE[r.key][1]}</span>
                     </span>
-                  </td>
-                  <td className="mono">{s.source || <span className="muted">—</span>}</td>
-                  <td className="nowrap">{date(s.created_at)}</td>
-                  <td className="nowrap">
-                    {s.status === "unsubscribed" && s.unsubscribed_at ? (
-                      <span className="muted">Left {date(s.unsubscribed_at)}</span>
-                    ) : s.confirmed_at ? (
-                      date(s.confirmed_at)
-                    ) : (
-                      <span className="muted">—</span>
-                    )}
-                  </td>
-                  <td className="nowrap">
-                    <button type="button" className="link-btn link-btn--danger" onClick={() => setRemoving(s)}>
-                      Erase
-                    </button>
-                  </td>
-                </tr>
+                    <span className="num">
+                      <b>{r.n.toLocaleString("en-IN")}</b> <span className="k">{Math.round((r.n / total) * 100)}%</span>
+                    </span>
+                  </div>
+                  <span className="bar" style={{ height: 8 }}>
+                    <span style={{ width: `${Math.round((r.n / total) * 100)}%` }} />
+                  </span>
+                </div>
               ))}
-              {shown.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="sheet__empty">
-                    No subscriber matches these filters.
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </table>
-        </div>
+            </section>
+          </div>
+
+          <section className="card" aria-label="Subscribers" style={{ overflow: "hidden" }}>
+            <div className="bl-tablebar">
+              <div className="seg" role="group" aria-label="Status">
+                {FILTERS.map((f) => (
+                  <button key={f} type="button" className={filter === f ? "on" : ""} aria-pressed={filter === f} onClick={() => setFilter(f)}>
+                    {f === "all" ? "All" : STATUS[f].label}
+                  </button>
+                ))}
+              </div>
+              <div className="bl-grow">
+                <label className="sr" htmlFor="sq">
+                  Search subscribers
+                </label>
+                <input id="sq" type="search" className="inp" placeholder="Search email or page" value={query} onChange={(e) => setQuery(e.target.value)} />
+              </div>
+            </div>
+            {rows.length === 0 ? (
+              <EmptyState
+                icon="mail"
+                title="No subscribers yet"
+                body="The sign-up box is on the website's blog and under every article. New sign-ups get a confirmation email first."
+              />
+            ) : (
+              <div className="tbl-wrap">
+                <table className="tbl bl-tbl" style={{ minWidth: 860 }}>
+                  <thead>
+                    <tr>
+                      <th scope="col">Email</th>
+                      <th scope="col">Status</th>
+                      <th scope="col">Signed up on</th>
+                      <th scope="col">Source</th>
+                      <th scope="col">Joined</th>
+                      <th scope="col">
+                        <span className="sr">Actions</span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {shown.map((s) => (
+                      <tr key={s.id}>
+                        <td style={{ fontWeight: 600, overflowWrap: "anywhere" }}>{s.email}</td>
+                        <td>
+                          <span className={"pill " + STATUS[s.status].tone}>
+                            <span className="dot" />
+                            {STATUS[s.status].label}
+                          </span>
+                        </td>
+                        <td style={{ color: "var(--ink-2)" }}>{s.source || "—"}</td>
+                        <td>{sourceOf(s)}</td>
+                        <td className="bl-nowrap">{dayMonthYear(s.created_at)}</td>
+                        <td className="r">
+                          <button type="button" className="btn sm danger" aria-label={`Erase ${s.email}`} onClick={() => setRemoving(s)}>
+                            Erase
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {shown.length === 0 ? <div className="bl-none">No subscribers match.</div> : null}
+              </div>
+            )}
+          </section>
+        </>
       )}
 
       {removing ? (
@@ -152,13 +234,14 @@ export function BlogSubscribersPage(): ReactElement {
           onClose={() => setRemoving(null)}
           onConfirm={async () => {
             await deleteSubscriber(removing.id);
+            staleBlogCounts();
             toast("Erased.");
             list.reload();
           }}
         >
           <p>
-            <b>{removing.email}</b> and their sign-up record are deleted for good (use this for a data-deletion request).
-            They can sign up again later. To just stop emails, they use the unsubscribe link.
+            <b style={{ overflowWrap: "anywhere" }}>{removing.email}</b> and their sign-up history are deleted for good. They get no more
+            emails. This can't be undone.
           </p>
         </ConfirmDialog>
       ) : null}

@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState, type ReactElement } from "react";
 import { Link, useBlocker, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   ARTICLE_TYPES,
-  STATE_PILL,
   articlePath,
   createArticle,
   deleteArticle,
@@ -25,6 +24,9 @@ import { Modal } from "../components/Modal";
 import { NewsletterCard } from "../components/NewsletterCard";
 import { RichTextEditor, type RichTextValue } from "../components/RichTextEditor";
 import { useToast } from "../components/Toast";
+import { EmptyState, LoadingState } from "../components/States";
+import { Icon } from "../components/icons";
+import { StatePill, seoCheck, staleBlogCounts } from "./blog/shared";
 import { portalUrl } from "../content/emailTemplates";
 import "../blog.css";
 
@@ -315,224 +317,286 @@ export function BlogEditorPage(): ReactElement {
 
   if (loadError) {
     return (
-      <div className="card empty">
-        <b>This article couldn't be opened</b>
-        <span className="muted">{loadError}</span>
-        <div>
-          <Link className="btn btn--ghost btn--sm" to="/blog">
-            Back to the blog
-          </Link>
-        </div>
+      <div className="card">
+        <EmptyState
+          icon="warn"
+          title="This article couldn't be opened"
+          body={loadError}
+          action={
+            <Link className="btn sm" to="/blog">
+              Back to the blog
+            </Link>
+          }
+        />
       </div>
     );
   }
+
+  if (!isNew && !article) return <LoadingState rows={8} label="Loading the article…" />;
 
   const state = article?.state ?? "draft";
   const live = state === "published";
   const scheduled = state === "scheduled";
   const seoTitle = form.seo_title || form.title;
   const metaDesc = form.meta_description || form.summary;
+  const metaLen = form.meta_description.length;
   const words = countWords(bodyText);
+  const sc = seoCheck({ ...form, title: form.title });
   const checks = [
-    { ok: seoTitle.length >= 30 && seoTitle.length <= 60, label: "Search title is 30–60 characters", now: `${seoTitle.length}` },
-    { ok: metaDesc.length >= 70 && metaDesc.length <= 160, label: "Description is 70–160 characters", now: `${metaDesc.length}` },
+    { ok: sc.title, label: "Search title is 30–60 characters", now: `${seoTitle.length}` },
+    { ok: sc.meta, label: "Description is 70–160 characters", now: `${metaDesc.length}` },
+    { ok: sc.alt, label: "Cover image with alt text" },
     { ok: words >= 300, label: "At least 300 words", now: `${words}` },
     { ok: /<h2[\s>]/.test(form.body_html), label: "Has a heading (H2)" },
-    { ok: !!form.cover && !!form.cover_alt.trim(), label: "Cover image with alt text" },
     { ok: form.tags.split(",").some((t) => t.trim()), label: "At least one tag" },
   ];
-  const score = checks.filter((c) => c.ok).length;
   const show = allSeries.find((x) => x.id === form.series) ?? null;
   const urlPrefix = show ? `/blog/series/${show.slug}/` : "/blog/";
+  const host = portalUrl().replace(/^https?:\/\//, "");
+  const later = !live && scheduleAt !== null;
+  const ist = Intl.DateTimeFormat().resolvedOptions().timeZone === "Asia/Kolkata";
+  const metaHint =
+    metaLen === 0
+      ? form.summary
+        ? "Empty: the excerpt is used. Write 70 to 160 characters."
+        : "Write 70 to 160 characters."
+      : metaLen < 70
+        ? `${70 - metaLen} more characters to reach 70.`
+        : metaLen > 160
+          ? `${metaLen - 160} characters over. Google cuts it off.`
+          : "Good length.";
+  const saveState =
+    busy === "save"
+      ? "Saving…"
+      : dirty
+        ? draft && form.title.trim()
+          ? "Unsaved changes · saves itself in a few seconds"
+          : draft
+            ? "Unsaved changes · add a title to save"
+            : "Unsaved changes"
+        : article
+          ? "All changes saved"
+          : "Not saved yet";
+
+  const primary = () => {
+    if (live) void save();
+    else if (later && scheduleAt) void publish(new Date(scheduleAt));
+    else void publish();
+  };
+  const primaryLabel =
+    busy === "publish" ? (later ? "Scheduling…" : "Publishing…") : busy === "save" && live ? "Saving…" : live ? "Update" : later ? "Schedule" : "Publish now";
 
   return (
-    <div className="editor">
-      <header className="editor__head">
-        <Link to="/blog" className="link-btn editor__back">
-          ← All articles
-        </Link>
-        <div className="editor__state">
-          <span className={"pill " + STATE_PILL[state].tone}>{STATE_PILL[state].label}</span>
-          <span className="muted">
-            {busy === "save"
-              ? "Saving…"
-              : dirty
-                ? draft && form.title.trim()
-                  ? "Unsaved changes · saves itself in a few seconds"
-                  : draft
-                    ? "Unsaved changes · add a title to save"
-                    : "Unsaved changes"
-                : article
-                  ? `Saved ${dateTime(article.updated_at)}`
-                  : "Not saved yet"}
+    <div className="bl-ed">
+      <header className="bl-ed__head">
+        <div className="bl-ed__left">
+          <Link to="/blog" className="btn">
+            <Icon name="chevronLeft" />
+            All articles
+          </Link>
+          <h1>{article ? "Edit article" : "New article"}</h1>
+          <StatePill state={state} />
+          <span className="k" role="status">
+            {saveState}
           </span>
+        </div>
+        <div className="bl-ed__right">
+          {!live ? (
+            <button type="button" className="btn" disabled={!!busy || (!dirty && !!article)} onClick={() => void save()}>
+              {busy === "save" ? "Saving…" : scheduled ? "Save" : "Save draft"}
+            </button>
+          ) : null}
+          <button type="button" className="btn dark" disabled={!!busy || (live && !dirty) || (later && !scheduleAt)} onClick={primary}>
+            {primaryLabel}
+          </button>
         </div>
       </header>
 
-      <div className="editor__grid">
-        <div className="editor__main">
-          <input
-            className="editor__title"
-            placeholder="Article title"
-            aria-label="Title"
-            maxLength={200}
-            value={form.title}
-            onChange={(e) => set("title", e.target.value)}
-          />
-          <div className="editor__slug">
-            <span className="muted">
-              {portalUrl().replace(/^https?:\/\//, "")}
-              {urlPrefix}
-            </span>
-            <input
-              aria-label="URL slug"
-              value={slug}
-              placeholder="url-of-the-article"
-              onChange={(e) => {
-                setSlugTouched(true);
-                // Letters, digits and dashes while typing; the server makes the final slug unique.
-                set("slug", e.target.value.toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/-{2,}/g, "-"));
-              }}
-            />
-          </div>
-          {live && saved.slug && form.slug !== saved.slug ? (
-            <p className="editor__warn">Changing the URL of a live article breaks links people already shared.</p>
-          ) : null}
-
-          <label className="editor__field">
-            <span>
-              Summary <small>{form.summary.length}/300 · shown on cards and in search results</small>
-            </span>
-            <textarea
-              rows={2}
-              maxLength={300}
-              placeholder="One or two sentences that make people want to read it."
-              value={form.summary}
-              onChange={(e) => set("summary", e.target.value)}
-            />
-          </label>
-
-          {form.series ? (
-            <div className="editor__field">
-              <span>
-                Public opening <small>everyone sees this: the cold open that makes people want the rest (also the email teaser)</small>
-              </span>
-              <RichTextEditor
-                key={`teaser-${editorKey}`}
-                variant="article"
-                label="Public opening"
-                placeholder="4:42 PM. Tuesday. The phone rang…"
-                initialHtml={form.teaser_html}
-                onImageUpload={uploadInline}
-                onChange={(v: RichTextValue) => {
-                  const html = v.text ? v.html : "";
-                  set("teaser_html", html);
-                  if (teaserBaseline.current) {
-                    teaserBaseline.current = false;
-                    setSaved((s) => ({ ...s, teaser_html: html }));
-                  }
-                }}
+      <div className="bl-ed__grid">
+        <div className="bl-ed__main">
+          <section className="card bl-ed__card" aria-label="Article">
+            <div className="bl-field">
+              <label className="lab" htmlFor="et">
+                Title
+              </label>
+              <input
+                id="et"
+                className="inp bl-ed__title"
+                placeholder="Article title"
+                maxLength={200}
+                value={form.title}
+                onChange={(e) => set("title", e.target.value)}
               />
             </div>
-          ) : null}
+            <div className="bl-field">
+              <label className="lab" htmlFor="es">
+                URL slug
+              </label>
+              <div className="bl-slug">
+                <span className="mono">
+                  {host}
+                  {urlPrefix}
+                </span>
+                <input
+                  id="es"
+                  className="mono"
+                  value={slug}
+                  placeholder="url-of-the-article"
+                  onChange={(e) => {
+                    setSlugTouched(true);
+                    // Letters, digits and dashes while typing; the server makes the final slug unique.
+                    set("slug", e.target.value.toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/-{2,}/g, "-"));
+                  }}
+                />
+              </div>
+              {live ? <span className="k">Changing the URL of a live article breaks links people already shared.</span> : null}
+            </div>
 
-          <div className="editor__field">
-            <span>
-              {form.series ? "Members-only part" : "Article"}{" "}
-              <small>
-                {words} words · about {Math.max(1, Math.ceil(words / 200))} min read
-                {form.series ? " · the full case file: story, lesson, 10-minute challenge" : ""}
-              </small>
-            </span>
-            <RichTextEditor
-              key={editorKey}
-              variant="article"
-              label="Article body"
-              placeholder="Start writing… Use headings (H2) to structure it."
-              initialHtml={form.body_html}
-              onImageUpload={uploadInline}
-              onChange={(v: RichTextValue) => {
-                const html = v.text ? v.html : "";
-                setBodyText(v.text);
-                set("body_html", html);
-                if (bodyBaseline.current) {
-                  bodyBaseline.current = false;
-                  setSaved((s) => ({ ...s, body_html: html }));
-                }
-              }}
-            />
-          </div>
+            {form.series ? (
+              <div className="bl-field">
+                <span className="lab">
+                  Public opening{" "}
+                  <span className="k" style={{ fontWeight: 400 }}>
+                    everyone sees this: the cold open that makes people want the rest (also the email teaser)
+                  </span>
+                </span>
+                <div className="bl-body">
+                  <RichTextEditor
+                    key={`teaser-${editorKey}`}
+                    variant="article"
+                    label="Public opening"
+                    placeholder="4:42 PM. Tuesday. The phone rang…"
+                    initialHtml={form.teaser_html}
+                    onImageUpload={uploadInline}
+                    onChange={(v: RichTextValue) => {
+                      const html = v.text ? v.html : "";
+                      set("teaser_html", html);
+                      if (teaserBaseline.current) {
+                        teaserBaseline.current = false;
+                        setSaved((s) => ({ ...s, teaser_html: html }));
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+            ) : null}
+
+            <div className="bl-field">
+              <span className="lab" id="body-l">
+                {form.series ? "Members-only part" : "Article body"}
+                {form.series ? (
+                  <span className="k" style={{ fontWeight: 400 }}>
+                    {" "}
+                    the full case file: story, lesson, 10-minute challenge
+                  </span>
+                ) : null}
+              </span>
+              <div className="bl-body">
+                <RichTextEditor
+                  key={editorKey}
+                  variant="article"
+                  label="Article body"
+                  placeholder="Start writing… Use headings (H2) to structure it."
+                  initialHtml={form.body_html}
+                  onImageUpload={uploadInline}
+                  onChange={(v: RichTextValue) => {
+                    const html = v.text ? v.html : "";
+                    setBodyText(v.text);
+                    set("body_html", html);
+                    if (bodyBaseline.current) {
+                      bodyBaseline.current = false;
+                      setSaved((s) => ({ ...s, body_html: html }));
+                    }
+                  }}
+                />
+                <div className="bl-body__foot">
+                  <span className="k num">
+                    {words.toLocaleString("en-IN")} {words === 1 ? "word" : "words"} · about {Math.max(1, Math.ceil(words / 200))} min read
+                  </span>
+                  <span className="k">{draft ? "Autosaves a few seconds after you stop typing" : "Press Update to change the live article"}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="bl-field">
+              <label className="lab" htmlFor="ex">
+                Excerpt{" "}
+                <span className="k" style={{ fontWeight: 400 }}>
+                  {form.summary.length}/300
+                </span>
+              </label>
+              <textarea
+                id="ex"
+                className="ta"
+                rows={2}
+                maxLength={300}
+                style={{ minHeight: 0 }}
+                placeholder="One or two sentences that make people want to read it."
+                value={form.summary}
+                onChange={(e) => set("summary", e.target.value)}
+              />
+              <span className="k">Shows on the blog list and in the newsletter email.</span>
+            </div>
+          </section>
         </div>
 
-        <aside className="editor__side">
-          <section className="side-card">
-            <h3>Publish</h3>
-            <div className="side-card__actions">
-              <button type="button" className="btn btn--ghost btn--sm" disabled={!!busy || (!dirty && !!article)} onClick={() => void save()}>
-                {busy === "save" ? "Saving…" : state !== "draft" ? "Update" : "Save draft"}
-              </button>
-              {live ? (
-                <button type="button" className="btn btn--ghost btn--sm" disabled={!!busy} onClick={() => void unpublish()}>
-                  {busy === "unpublish" ? "Unpublishing…" : "Unpublish"}
-                </button>
-              ) : (
-                <button type="button" className="btn btn--primary btn--sm" disabled={!!busy} onClick={() => void publish()}>
-                  {busy === "publish" ? "Publishing…" : scheduled ? "Publish now" : "Publish"}
-                </button>
-              )}
-            </div>
-            {scheduled && article?.published_at ? (
-              <p className="side-card__note sched-note">
-                Goes live on its own <b>{dateTime(article.published_at)}</b>.{" "}
-                <button type="button" className="link-btn" disabled={!!busy} onClick={() => void unpublish()}>
-                  Unschedule
-                </button>
-              </p>
-            ) : null}
-            {!live ? (
-              scheduleAt === null ? (
-                <button type="button" className="link-btn" disabled={!!busy} onClick={() => setScheduleAt(toLocalInput(nextHour()))}>
-                  {scheduled ? "Change the time…" : "Schedule for later…"}
-                </button>
-              ) : (
-                <div className="sched">
-                  <label className="editor__field">
-                    <span>
-                      Go live at <small>your local time</small>
-                    </span>
+        <aside className="bl-ed__side">
+          <section className="card bl-side" aria-labelledby="pub-h">
+            <h2 id="pub-h">Publish</h2>
+            {live ? (
+              <div className="bl-col" style={{ gap: 8 }}>
+                {article?.published_at ? <span className="k">First published {dateTime(article.published_at)}</span> : null}
+                <div className="bl-inline">
+                  {article ? (
+                    <a className="btn sm" href={`${portalUrl()}${articlePath(article)}`} target="_blank" rel="noreferrer">
+                      View on the website ↗
+                    </a>
+                  ) : null}
+                  <button type="button" className="btn sm" disabled={!!busy} onClick={() => void unpublish()}>
+                    {busy === "unpublish" ? "Unpublishing…" : "Unpublish"}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                {scheduled && article?.published_at ? (
+                  <p className="bl-next" style={{ margin: 0 }}>
+                    Goes live on its own <b>{dateTime(article.published_at)}</b>.{" "}
+                    <button type="button" className="link" disabled={!!busy} onClick={() => void unpublish()}>
+                      Unschedule
+                    </button>
+                  </p>
+                ) : null}
+                <div role="radiogroup" aria-label="When" className="bl-col" style={{ gap: 6 }}>
+                  <label className="bl-radio">
+                    <input type="radio" name="when" checked={!later} onChange={() => setScheduleAt(null)} />
+                    Publish now
+                  </label>
+                  <label className="bl-radio">
+                    <input type="radio" name="when" checked={later} onChange={() => setScheduleAt(toLocalInput(nextHour()))} />
+                    {scheduled ? "Change the time" : "Schedule for later"}
+                  </label>
+                </div>
+                {later ? (
+                  <div className="bl-field">
+                    <label className="lab" htmlFor="sch">
+                      Goes live on its own at
+                    </label>
                     <input
+                      id="sch"
                       type="datetime-local"
-                      value={scheduleAt}
+                      className="inp"
+                      value={scheduleAt ?? ""}
                       min={toLocalInput(new Date())}
                       onChange={(e) => setScheduleAt(e.target.value)}
                     />
-                  </label>
-                  <div className="side-card__row">
-                    <button
-                      type="button"
-                      className="btn btn--primary btn--sm"
-                      disabled={!!busy || !scheduleAt}
-                      onClick={() => void publish(new Date(scheduleAt))}
-                    >
-                      {busy === "publish" ? "Scheduling…" : "Schedule"}
-                    </button>
-                    <button type="button" className="link-btn" onClick={() => setScheduleAt(null)}>
-                      Cancel
-                    </button>
+                    <span className="k">{ist ? "India Standard Time" : "Your computer's local time"}</span>
                   </div>
-                </div>
-              )
-            ) : null}
-            {live && article ? (
-              <a className="link-btn" href={`${portalUrl()}${articlePath(article)}`} target="_blank" rel="noreferrer">
-                View on the website ↗
-              </a>
-            ) : null}
-            {live && article?.published_at ? (
-              <p className="side-card__note">First published {dateTime(article.published_at)}</p>
-            ) : null}
+                ) : null}
+              </>
+            )}
             {article ? (
-              <button type="button" className="link-btn link-btn--danger" onClick={() => setConfirmDelete(true)}>
+              <button type="button" className="btn sm danger" style={{ alignSelf: "flex-start" }} onClick={() => setConfirmDelete(true)}>
                 Delete article
               </button>
             ) : null}
@@ -540,13 +604,50 @@ export function BlogEditorPage(): ReactElement {
 
           {article ? <NewsletterCard article={article} dirty={dirty} /> : null}
 
-          <section className="side-card">
-            <h3>Series episode</h3>
-            <label className="editor__field">
-              <span>
-                Series <small>members-only: the body and files are for subscribers</small>
-              </span>
+          <section className="card bl-side" aria-labelledby="det-h">
+            <h2 id="det-h">Details</h2>
+            <div className="bl-field">
+              <label className="lab" htmlFor="ec">
+                Category
+              </label>
+              <select id="ec" className="inp" value={form.type} onChange={(e) => set("type", e.target.value as ArticleType)}>
+                {ARTICLE_TYPES.map((t) => (
+                  <option key={t.key} value={t.key}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+              <span className="k">{ARTICLE_TYPES.find((t) => t.key === form.type)?.hint}</span>
+            </div>
+            <div className="bl-field">
+              <label className="lab" htmlFor="ea">
+                Author
+              </label>
+              <input id="ea" className="inp" value={form.author_name} placeholder="Zinwe team" maxLength={120} onChange={(e) => set("author_name", e.target.value)} />
+            </div>
+            <div className="bl-field">
+              <label className="lab" htmlFor="tg">
+                Tags{" "}
+                <span className="k" style={{ fontWeight: 400 }}>
+                  comma-separated
+                </span>
+              </label>
+              <input id="tg" className="inp" value={form.tags} placeholder="usb, dpdp, guide" onChange={(e) => set("tags", e.target.value)} />
+            </div>
+          </section>
+
+          <section className="card bl-side" aria-labelledby="ser-h">
+            <h2 id="ser-h">Series episode</h2>
+            <div className="bl-field">
+              <label className="lab" htmlFor="eser">
+                Series{" "}
+                <span className="k" style={{ fontWeight: 400 }}>
+                  members-only: the body and files are for subscribers
+                </span>
+              </label>
               <select
+                id="eser"
+                className="inp"
                 value={form.series ?? ""}
                 onChange={(e) => {
                   const next = e.target.value ? Number(e.target.value) : null;
@@ -561,13 +662,15 @@ export function BlogEditorPage(): ReactElement {
                   </option>
                 ))}
               </select>
-            </label>
+            </div>
             {form.series ? (
               <>
-                <div className="side-card__row">
-                  <label className="editor__field">
-                    <span>Season</span>
-                    <select value={form.season} onChange={(e) => set("season", Number(e.target.value))}>
+                <div className="bl-two-fields">
+                  <div className="bl-field">
+                    <label className="lab" htmlFor="eseason">
+                      Season
+                    </label>
+                    <select id="eseason" className="inp" value={form.season} onChange={(e) => set("season", Number(e.target.value))}>
                       {(show?.seasons.length ? show.seasons : [{ number: form.season, title: "", theme: "" }]).map((s) => (
                         <option key={s.number} value={s.number}>
                           {s.number}
@@ -575,12 +678,17 @@ export function BlogEditorPage(): ReactElement {
                         </option>
                       ))}
                     </select>
-                  </label>
-                  <label className="editor__field">
-                    <span>
-                      Episode <small>empty = next</small>
-                    </span>
+                  </div>
+                  <div className="bl-field">
+                    <label className="lab" htmlFor="eep">
+                      Episode{" "}
+                      <span className="k" style={{ fontWeight: 400 }}>
+                        empty = next
+                      </span>
+                    </label>
                     <input
+                      id="eep"
+                      className="inp"
                       type="number"
                       min={1}
                       max={999}
@@ -588,66 +696,66 @@ export function BlogEditorPage(): ReactElement {
                       placeholder="next"
                       onChange={(e) => set("episode", e.target.value)}
                     />
-                  </label>
+                  </div>
                 </div>
-                <label className="editor__field">
-                  <span>
-                    Email subject <small>the drip email; empty = the title</small>
-                  </span>
+                <div className="bl-field">
+                  <label className="lab" htmlFor="esub">
+                    Email subject{" "}
+                    <span className="k" style={{ fontWeight: 400 }}>
+                      the drip email; empty = the title
+                    </span>
+                  </label>
                   <input
+                    id="esub"
+                    className="inp"
                     value={form.newsletter_subject}
                     maxLength={200}
                     placeholder={form.title || "The file was correct. The recipient wasn't."}
                     onChange={(e) => set("newsletter_subject", e.target.value)}
                   />
-                </label>
+                </div>
                 <label className="check-row">
                   <input type="checkbox" checked={form.free_preview} onChange={(e) => set("free_preview", e.target.checked)} />
                   <span>
-                    <b>Free episode</b> <small className="muted">anyone can read it in full (e.g. the pilot)</small>
+                    <b>Free episode</b> <span className="k">anyone can read it in full (e.g. the pilot)</span>
                   </span>
                 </label>
                 {show && show.status === "draft" ? (
-                  <p className="side-card__note is-warn">This series is a draft: its episodes aren't on the website until it's live (Blog → Series).</p>
+                  <p className="note warn">This series is a draft: its episodes aren't on the website until it's live (Blog → Series).</p>
                 ) : null}
               </>
             ) : allSeries.length === 0 ? (
-              <p className="side-card__note">
+              <span className="k">
                 No series yet. <Link to="/blog/series">Create one</Link>.
-              </p>
+              </span>
             ) : null}
           </section>
 
           {article ? (
-            <AttachmentsCard
-              article={article}
-              membersOnly={!!article.series && !article.free_preview}
-              onChange={(next) => setArticle(next)}
-            />
+            <AttachmentsCard article={article} membersOnly={!!article.series && !article.free_preview} onChange={(next) => setArticle(next)} />
           ) : null}
 
-          <section className="side-card">
-            <h3>Type</h3>
-            <div className="type-pick" role="radiogroup" aria-label="Article type">
-              {ARTICLE_TYPES.map((t) => (
-                <label key={t.key} className={"type-pick__opt type-tag--" + t.key + (form.type === t.key ? " is-on" : "")}>
-                  <input type="radio" name="type" value={t.key} checked={form.type === t.key} onChange={() => set("type", t.key)} />
-                  <b>{t.label}</b>
-                  <small>{t.hint}</small>
-                </label>
-              ))}
-            </div>
-          </section>
-
-          <section className="side-card">
-            <h3>Cover image</h3>
+          <section className="card bl-side" aria-labelledby="cov-h">
+            <h2 id="cov-h">Cover image</h2>
             {form.cover ? (
-              <img className="cover-preview" src={form.cover.url} alt={form.cover_alt || "Cover"} />
+              <div className="bl-col" style={{ gap: 6 }}>
+                <img className="bl-cover" src={form.cover.url} alt={form.cover_alt || "Cover image, no alt text yet"} />
+                <div className="bl-inline" style={{ justifyContent: "space-between" }}>
+                  <button type="button" className="btn sm" disabled={busy === "cover"} onClick={() => coverInput.current?.click()}>
+                    {busy === "cover" ? "Uploading…" : "Replace"}
+                  </button>
+                  <button type="button" className="btn sm danger" onClick={() => set("cover", null)}>
+                    Remove
+                  </button>
+                </div>
+              </div>
             ) : (
-              <button type="button" className="cover-drop" onClick={() => coverInput.current?.click()} disabled={busy === "cover"}>
-                {busy === "cover" ? "Uploading…" : "Add a cover image"}
-                <small>PNG, JPG or WebP, up to 5 MB. 1200×630 works best for sharing.</small>
-              </button>
+              <div className="bl-drop">
+                <button type="button" className="btn sm" disabled={busy === "cover"} onClick={() => coverInput.current?.click()}>
+                  {busy === "cover" ? "Uploading…" : "Upload image"}
+                </button>
+                <span className="k">PNG, JPG or WebP, up to 5 MB</span>
+              </div>
             )}
             <input
               ref={coverInput}
@@ -660,71 +768,83 @@ export function BlogEditorPage(): ReactElement {
                 e.target.value = "";
               }}
             />
-            {form.cover ? (
-              <>
-                <label className="editor__field">
-                  <span>Alt text <small>describes the image for search and screen readers</small></span>
-                  <input value={form.cover_alt} maxLength={200} onChange={(e) => set("cover_alt", e.target.value)} />
-                </label>
-                <div className="side-card__row">
-                  <button type="button" className="link-btn" onClick={() => coverInput.current?.click()}>
-                    Replace
-                  </button>
-                  <button type="button" className="link-btn link-btn--danger" onClick={() => set("cover", null)}>
-                    Remove
-                  </button>
-                </div>
-              </>
-            ) : null}
-          </section>
-
-          <section className="side-card">
-            <h3>Details</h3>
-            <label className="editor__field">
-              <span>Tags <small>comma-separated</small></span>
-              <input value={form.tags} placeholder="usb, dpdp, guide" onChange={(e) => set("tags", e.target.value)} />
-            </label>
-            <label className="editor__field">
-              <span>Author</span>
-              <input value={form.author_name} placeholder="Zinwe team" maxLength={120} onChange={(e) => set("author_name", e.target.value)} />
-            </label>
-          </section>
-
-          <section className="side-card">
-            <h3>
-              Search (SEO) <span className={"seo-score" + (score >= 5 ? " is-good" : "")}>{score}/6</span>
-            </h3>
-            <div className="serp" aria-label="Google preview">
-              <span className="serp__url">zinwe.io{urlPrefix.replace(/\//g, " › ").replace(/ › $/, "")} › {slug || "…"}</span>
-              <span className="serp__title">{seoTitle ? seoTitle.slice(0, 62) + (seoTitle.length > 62 ? "…" : "") : "Search title"}</span>
-              <span className="serp__desc">
-                {metaDesc ? metaDesc.slice(0, 158) + (metaDesc.length > 158 ? "…" : "") : "The description people see under the title."}
-              </span>
+            <span className="k">1200×630 works best for sharing.</span>
+            <div className="bl-field">
+              <label className="lab" htmlFor="alt">
+                Alt text
+              </label>
+              <input
+                id="alt"
+                className="inp"
+                placeholder="Describe the image for people who can't see it"
+                maxLength={200}
+                value={form.cover_alt}
+                onChange={(e) => set("cover_alt", e.target.value)}
+              />
             </div>
-            <label className="editor__field">
-              <span>
-                Search title <small className={form.seo_title.length > 60 ? "is-warn" : ""}>{form.seo_title.length}/70 · empty = the title</small>
-              </span>
-              <input value={form.seo_title} maxLength={70} onChange={(e) => set("seo_title", e.target.value)} />
-            </label>
-            <label className="editor__field">
-              <span>
-                Description{" "}
-                <small className={form.meta_description.length > 160 ? "is-warn" : ""}>
-                  {form.meta_description.length}/170 · empty = the summary
-                </small>
-              </span>
-              <textarea rows={3} value={form.meta_description} maxLength={170} onChange={(e) => set("meta_description", e.target.value)} />
-            </label>
-            <ul className="seo-checks">
+          </section>
+
+          <section className="card bl-side" aria-labelledby="seo-h">
+            <div className="bl-side__head">
+              <h2 id="seo-h">Search</h2>
+              <span className={"pill " + (sc.ok === 3 ? "good" : "warn")}>SEO {sc.ok}/3</span>
+            </div>
+            <div className="bl-field">
+              <div className="bl-side__head">
+                <label className="lab" htmlFor="st">
+                  Search title{" "}
+                  <span className="k" style={{ fontWeight: 400 }}>
+                    empty = the title
+                  </span>
+                </label>
+                <span className={"num bl-count" + (form.seo_title.length > 60 ? " is-bad" : "")}>{form.seo_title.length} / 60</span>
+              </div>
+              <input id="st" className="inp" value={form.seo_title} maxLength={70} onChange={(e) => set("seo_title", e.target.value)} />
+            </div>
+            <div className="bl-field">
+              <div className="bl-side__head">
+                <label className="lab" htmlFor="md">
+                  Meta description
+                </label>
+                <span className={"num bl-count " + (metaLen >= 70 && metaLen <= 160 ? "is-good" : metaLen > 160 ? "is-bad" : "is-warn")}>
+                  {metaLen} / 160
+                </span>
+              </div>
+              <textarea
+                id="md"
+                className="ta"
+                rows={3}
+                style={{ minHeight: 0 }}
+                maxLength={170}
+                placeholder="The description people see under the title in Google."
+                value={form.meta_description}
+                onChange={(e) => set("meta_description", e.target.value)}
+              />
+              <span className="k">{metaHint}</span>
+            </div>
+            <ul className="bl-checks">
               {checks.map((c) => (
-                <li key={c.label} className={c.ok ? "is-ok" : ""}>
-                  <span aria-hidden="true">{c.ok ? "✓" : "•"}</span>
-                  {c.label}
-                  {c.now ? <small> ({c.now})</small> : null}
+                <li key={c.label}>
+                  <span className={"bl-mark " + (c.ok ? "ok" : "no")} aria-hidden="true">
+                    {c.ok ? "OK" : "!"}
+                  </span>
+                  <span style={{ flex: "1 1 auto" }}>{c.label}</span>
+                  {c.now ? <span className="k num">{c.now}</span> : null}
+                  <span className="sr">{c.ok ? "passes" : "needs work"}</span>
                 </li>
               ))}
             </ul>
+            <div className="bl-serp" aria-label="Google preview">
+              <span className="k">Google preview</span>
+              <span className="bl-serp__url">
+                {host.replace(/^www\./, "")}
+                {urlPrefix.replace(/\//g, " › ").replace(/ › $/, "")} › {slug || "…"}
+              </span>
+              <span className="bl-serp__title">{(seoTitle || "Article title").slice(0, 62) + (seoTitle.length > 62 ? "…" : "")} | Zinwe</span>
+              <span className="bl-serp__desc">
+                {metaDesc ? metaDesc.slice(0, 158) + (metaDesc.length > 158 ? "…" : "") : "Add a meta description."}
+              </span>
+            </div>
           </section>
         </aside>
       </div>
@@ -739,6 +859,7 @@ export function BlogEditorPage(): ReactElement {
             await deleteArticle(article.id);
             setSaved(form);
             leaving.current = true; // no unsaved-changes prompt on the way out
+            staleBlogCounts();
             toast("Article deleted.");
             navigate("/blog", { replace: true });
           }}
@@ -754,19 +875,20 @@ export function BlogEditorPage(): ReactElement {
         <Modal
           title="Leave without saving?"
           size="small"
+          role="alertdialog"
           onClose={() => blocker.reset()}
           footer={
             <>
-              <button type="button" className="btn btn--ghost" onClick={() => blocker.reset()}>
+              <button type="button" className="btn" onClick={() => blocker.reset()}>
                 Stay here
               </button>
-              <button type="button" className="btn btn--danger" onClick={() => blocker.proceed()}>
+              <button type="button" className="btn danger" onClick={() => blocker.proceed()}>
                 Discard changes
               </button>
               {form.title.trim() ? (
                 <button
                   type="button"
-                  className="btn btn--primary"
+                  className="btn dark"
                   disabled={busy !== null}
                   onClick={async () => {
                     if (await save(true, false)) blocker.proceed();
@@ -779,10 +901,8 @@ export function BlogEditorPage(): ReactElement {
             </>
           }
         >
-          <p>
-            {live
-              ? "Your edits to this live article aren't saved yet."
-              : "This article has changes that aren't saved yet."}{" "}
+          <p style={{ margin: 0 }}>
+            {live ? "Your edits to this live article aren't saved yet." : "This article has changes that aren't saved yet."}{" "}
             {form.title.trim() ? "" : "Give it a title to save it."}
           </p>
         </Modal>

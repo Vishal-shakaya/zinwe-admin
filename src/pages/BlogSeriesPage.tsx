@@ -1,24 +1,27 @@
 import { useCallback, useRef, useState, type ReactElement } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   createSeries,
   deleteSeries,
   getSeriesStats,
+  listArticles,
   listSeries,
   updateSeries,
   uploadBlogImage,
+  type Article,
   type BlogImageRef,
   type Series,
   type SeriesInput,
   type SeriesStats,
 } from "../lib/blogApi";
-import { date } from "../lib/format";
 import { useLoad } from "../lib/useLoad";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Modal } from "../components/Modal";
-import { PageHeader } from "../components/PageHeader";
+import { EmptyState, ErrorState, LoadingState } from "../components/States";
+import { Icon } from "../components/icons";
 import { useToast } from "../components/Toast";
 import { portalUrl } from "../content/emailTemplates";
+import { BlogHeader, staleBlogCounts } from "./blog/shared";
 import "../blog.css";
 
 interface Form {
@@ -52,17 +55,39 @@ const toForm = (s: Series): Form => ({
   drip_enabled: s.drip_enabled, drip_weekdays: s.drip_weekdays, drip_hour: String(s.drip_hour),
 });
 
+/** Mon-first weekday index of a date (the API's drip_weekdays use 0 = Monday). */
+const monFirst = (d: Date) => (d.getDay() + 6) % 7;
+const SEND_TIMES = [8, 9, 10, 18];
+
+/** The next drip send: the first chosen weekday at the drip hour that is still ahead. */
+function nextSend(weekdays: number[], hour: number): string | null {
+  if (!weekdays.length) return null;
+  const now = new Date();
+  for (let i = 0; i < 8; i++) {
+    const d = new Date(now);
+    d.setDate(now.getDate() + i);
+    d.setHours(hour, 0, 0, 0);
+    if (d.getTime() > now.getTime() && weekdays.includes(monFirst(d))) {
+      return `${DAYS[monFirst(d)]} ${d.getDate()} ${d.toLocaleDateString("en-GB", { month: "short" })}, ${String(hour).padStart(2, "0")}:00`;
+    }
+  }
+  return null;
+}
+
 /**
- * Members-only newsletter series (THE LAST FILE): the show's page on the website. Episodes are articles:
- * open one in the editor and pick the series under "Series episode".
+ * Blog → Series (AdminBlog board): the series at a glance, its episodes, and the email drip. Episodes are
+ * articles: open one in the editor (or "New episode"). The series details are edited in a dialog.
  */
 export function BlogSeriesPage(): ReactElement {
-  const load = useCallback(() => listSeries(), []);
+  const load = useCallback(() => Promise.all([listSeries(), listArticles()]), []);
   const list = useLoad(load);
   const toast = useToast();
   const [editing, setEditing] = useState<Series | "new" | null>(null);
   const [removing, setRemoving] = useState<Series | null>(null);
   const [numbers, setNumbers] = useState<Series | null>(null);
+
+  const series = list.data?.[0] ?? null;
+  const articles = list.data?.[1] ?? [];
 
   const toggle = async (s: Series) => {
     try {
@@ -76,93 +101,61 @@ export function BlogSeriesPage(): ReactElement {
 
   return (
     <>
-      <PageHeader
-        title="Series"
-        subtitle="Members-only newsletter series. The opening of each episode is public; the full episode and its files are for confirmed subscribers."
-        onReload={list.reload}
-        pending={list.pending}
-      >
-        <Link className="btn btn--ghost" to="/blog">
-          ← Articles
-        </Link>
-        <button type="button" className="btn btn--primary" onClick={() => setEditing("new")}>
-          New series
-        </button>
-      </PageHeader>
+      <BlogHeader
+        known={{ series: series?.length, articles: list.data ? articles.length : undefined }}
+        action={
+          series && series.length ? (
+            <Link className="btn dark" to={`/blog/new?series=${series[0].id}`}>
+              <Icon name="plus" />
+              New episode
+            </Link>
+          ) : (
+            <button type="button" className="btn dark" onClick={() => setEditing("new")}>
+              <Icon name="plus" />
+              New series
+            </button>
+          )
+        }
+      />
 
       {list.error ? (
-        <p className="alert alert--bad">{list.error}</p>
-      ) : !list.data ? (
-        <p className="muted">Loading…</p>
-      ) : list.data.length === 0 ? (
-        <div className="card empty">
-          <b>No series yet</b>
-          <span className="muted">A series is a show: a cover, seasons and episodes. Episodes are written as articles.</span>
-          <div>
-            <button type="button" className="btn btn--primary btn--sm" onClick={() => setEditing("new")}>
-              Create the first series
-            </button>
-          </div>
+        <ErrorState message={list.error} onRetry={list.reload} />
+      ) : !series ? (
+        <LoadingState rows={6} label="Loading the series…" />
+      ) : series.length === 0 ? (
+        <div className="card">
+          <EmptyState
+            icon="blog"
+            title="No series yet"
+            body="A series is a show: a cover, seasons and episodes. Episodes are written as articles."
+            action={
+              <button type="button" className="btn dark sm" onClick={() => setEditing("new")}>
+                Create the first series
+              </button>
+            }
+          />
         </div>
       ) : (
-        <div className="series-grid">
-          {list.data.map((s) => (
-            <article key={s.id} className="card series-card">
-              {s.cover ? <img className="series-card__art" src={s.cover.url} alt="" /> : <div className="series-card__art is-empty" />}
-              <div className="series-card__body">
-                <div className="series-card__top">
-                  <h3>{s.title}</h3>
-                  <span className={"pill " + (s.status === "published" ? "pill--good" : "pill--muted")}>
-                    {s.status === "published" ? "Live" : "Draft"}
-                  </span>
-                </div>
-                {s.tagline ? <p className="muted">{s.tagline}</p> : null}
-                <p className="series-card__meta">
-                  {s.episode_count} of {s.planned_episodes || "?"} episodes written · {s.seasons.length} seasons · updated {date(s.updated_at)}
-                </p>
-                <p className="mono series-card__url">/blog/series/{s.slug}</p>
-                <p className={"series-card__drip" + (s.drip_enabled ? " is-on" : "")}>
-                  {s.drip_enabled ? (
-                    <>
-                      <b>Emails on</b> · {s.drip_schedule} · {s.drip_stats.readers} readers · {s.drip_stats.sent} sent
-                      {s.drip_stats.sent_today ? ` (${s.drip_stats.sent_today} today)` : ""}
-                      {s.drip_stats.failed ? ` · ${s.drip_stats.failed} failed` : ""}
-                    </>
-                  ) : (
-                    <>
-                      <b>Emails off</b> · subscribers aren't emailed the episodes
-                    </>
-                  )}
-                </p>
-                <div className="side-card__row">
-                  <button type="button" className="link-btn" onClick={() => setEditing(s)}>
-                    Edit
-                  </button>
-                  <Link className="link-btn" to={`/blog?series=${s.id}`}>
-                    Episodes
-                  </Link>
-                  <Link className="link-btn" to={`/blog/new?series=${s.id}`}>
-                    New episode
-                  </Link>
-                  <button type="button" className="link-btn" onClick={() => setNumbers(s)}>
-                    Numbers
-                  </button>
-                  <button type="button" className="link-btn" onClick={() => void toggle(s)}>
-                    {s.status === "published" ? "Hide" : "Make live"}
-                  </button>
-                  {s.status === "published" ? (
-                    <a className="link-btn" href={`${portalUrl()}/blog/series/${s.slug}`} target="_blank" rel="noreferrer">
-                      View ↗
-                    </a>
-                  ) : null}
-                  <button type="button" className="link-btn link-btn--danger" onClick={() => setRemoving(s)}>
-                    Delete
-                  </button>
-                </div>
-              </div>
-            </article>
+        <>
+          {series.map((s) => (
+            <SeriesBlock
+              key={s.id}
+              series={s}
+              episodes={articles.filter((a) => a.series === s.id)}
+              onEdit={() => setEditing(s)}
+              onNumbers={() => setNumbers(s)}
+              onToggle={() => void toggle(s)}
+              onDelete={() => setRemoving(s)}
+              onChanged={list.reload}
+            />
           ))}
-        </div>
+          <p className="k" style={{ margin: 0 }}>
+            Another show?{" "}
+            <button type="button" className="link" onClick={() => setEditing("new")}>
+              New series
+            </button>
+          </p>
+        </>
       )}
 
       {editing ? (
@@ -171,6 +164,7 @@ export function BlogSeriesPage(): ReactElement {
           onClose={() => setEditing(null)}
           onSaved={() => {
             setEditing(null);
+            staleBlogCounts();
             list.reload();
           }}
         />
@@ -186,6 +180,7 @@ export function BlogSeriesPage(): ReactElement {
           onClose={() => setRemoving(null)}
           onConfirm={async () => {
             await deleteSeries(removing.id);
+            staleBlogCounts();
             toast("Series deleted. Its episodes are ordinary drafts now.");
             list.reload();
           }}
@@ -193,6 +188,283 @@ export function BlogSeriesPage(): ReactElement {
           <p>
             <b>{removing.title}</b> will be removed. Its episodes stay as articles (out of the series). A series with live episodes can't be
             deleted: unpublish them first.
+          </p>
+        </ConfirmDialog>
+      ) : null}
+    </>
+  );
+}
+
+function SeriesBlock({
+  series: s,
+  episodes,
+  onEdit,
+  onNumbers,
+  onToggle,
+  onDelete,
+  onChanged,
+}: {
+  series: Series;
+  episodes: Article[];
+  onEdit: () => void;
+  onNumbers: () => void;
+  onToggle: () => void;
+  onDelete: () => void;
+  onChanged: () => void;
+}): ReactElement {
+  const navigate = useNavigate();
+  const toast = useToast();
+  const loadStats = useCallback(() => getSeriesStats(s.id), [s.id]);
+  const stats = useLoad<SeriesStats>(loadStats);
+  const [drip, setDrip] = useState({ enabled: s.drip_enabled, weekdays: s.drip_weekdays, hour: s.drip_hour });
+  const [confirmOn, setConfirmOn] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const saveDrip = async (next: typeof drip, msg: string) => {
+    const before = drip;
+    setDrip(next);
+    setSaving(true);
+    try {
+      await updateSeries(s.id, { drip_enabled: next.enabled, drip_weekdays: next.weekdays, drip_hour: next.hour });
+      toast(msg);
+      onChanged();
+    } catch (err) {
+      setDrip(before);
+      toast(err instanceof Error ? err.message : "Couldn't save the send settings.", "bad");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const ordered = [...episodes].sort((a, b) => a.season - b.season || (a.episode ?? 0) - (b.episode ?? 0));
+  const out = ordered.filter((a) => a.state === "published").length;
+  const byEp = new Map((stats.data?.episodes ?? []).map((e) => [e.slug, e]));
+  const fmt = (n: number | undefined) => (n === undefined ? "—" : n.toLocaleString("en-IN"));
+  const next = nextSend(drip.weekdays, drip.hour);
+  const times = SEND_TIMES.includes(drip.hour) ? SEND_TIMES : [...SEND_TIMES, drip.hour].sort((a, b) => a - b);
+
+  return (
+    <>
+      <section className="card bl-ser" aria-labelledby={`ser-h-${s.id}`}>
+        {s.cover ? (
+          <img className="bl-ser__cover" src={s.cover.url} alt={s.cover_alt || "Series cover"} />
+        ) : (
+          <div className="bl-ph bl-ser__cover" role="img" aria-label="Series cover" />
+        )}
+        <div className="bl-ser__text">
+          <div className="bl-ser__title">
+            <h2 id={`ser-h-${s.id}`}>{s.title}</h2>
+            <span className={"pill " + (s.status === "published" ? "good" : "bl-st--draft")}>
+              <span className="dot" />
+              {s.status === "published" ? "Live" : "Draft"}
+            </span>
+          </div>
+          {s.tagline ? <span style={{ color: "var(--ink-2)" }}>{s.tagline}</span> : null}
+          {s.description ? <span className="k bl-clamp">{s.description}</span> : null}
+          <div className="bl-ser__acts">
+            <button type="button" className="btn sm" onClick={onEdit}>
+              Edit series
+            </button>
+            <button type="button" className="btn sm" onClick={onNumbers}>
+              Numbers
+            </button>
+            <button type="button" className="btn sm" onClick={onToggle}>
+              {s.status === "published" ? "Hide" : "Make live"}
+            </button>
+            {s.status === "published" ? (
+              <a className="btn sm" href={`${portalUrl()}/blog/series/${s.slug}`} target="_blank" rel="noreferrer">
+                View ↗
+              </a>
+            ) : null}
+            <button type="button" className="btn sm danger" onClick={onDelete}>
+              Delete
+            </button>
+          </div>
+        </div>
+        <dl className="bl-ser__kpis">
+          <div>
+            <dt className="k">Episodes out</dt>
+            <dd className="num">
+              {out} <span className="k">of {s.planned_episodes || ordered.length}</span>
+            </dd>
+          </div>
+          <div>
+            <dt className="k">Members read</dt>
+            <dd className="num">{fmt(stats.data?.members)}</dd>
+          </div>
+          <div>
+            <dt className="k">Emails sent</dt>
+            <dd className="num">{fmt(s.drip_stats.sent)}</dd>
+          </div>
+          <div>
+            <dt className="k">Zinwe sign-ups</dt>
+            <dd className="num">{fmt(stats.data?.signups)}</dd>
+          </div>
+        </dl>
+      </section>
+
+      <div className="bl-ser__row">
+        <section className="card bl-eps" aria-labelledby={`ep-h-${s.id}`}>
+          <div className="bl-eps__head">
+            <h2 id={`ep-h-${s.id}`}>Episodes</h2>
+            <span className="k">Drip day = which send a new subscriber gets it on</span>
+          </div>
+          {ordered.length === 0 ? (
+            <EmptyState
+              icon="edit"
+              title="No episodes yet"
+              body="Write the first episode as an article and pick this series under “Series episode”."
+              action={
+                <Link className="btn dark sm" to={`/blog/new?series=${s.id}`}>
+                  New episode
+                </Link>
+              }
+            />
+          ) : (
+            <div className="tbl-wrap">
+              <table className="tbl bl-tbl" style={{ minWidth: 640 }}>
+                <thead>
+                  <tr>
+                    <th scope="col">Episode</th>
+                    <th scope="col">Access</th>
+                    <th scope="col">Drip day</th>
+                    <th scope="col" className="r">
+                      Sent
+                    </th>
+                    <th scope="col" className="r">
+                      Reads
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {ordered.map((a, i) => {
+                    const st = byEp.get(a.slug);
+                    return (
+                      <tr key={a.id}>
+                        <td>
+                          <span className="k num">{a.episode ?? i + 1}</span>{" "}
+                          <button type="button" className="bl-tlink bl-tlink--inline" onClick={() => navigate(`/blog/${a.id}`)}>
+                            {a.title}
+                          </button>
+                          {a.state !== "published" ? (
+                            <span className={"pill bl-st--" + a.state} style={{ marginLeft: 4 }}>
+                              {a.state === "draft" ? "Draft" : "Scheduled"}
+                            </span>
+                          ) : null}
+                        </td>
+                        <td className="bl-nowrap">
+                          <span className={"pill " + (a.free_preview ? "good" : "bl-st--draft")}>
+                            {a.free_preview ? "Free, all public" : "Public opening · rest members-only"}
+                          </span>
+                        </td>
+                        <td className="num bl-nowrap">Day {i + 1}</td>
+                        <td className="num r">{st && a.state === "published" ? fmt(st.sent) : "—"}</td>
+                        <td className="num r" style={{ fontWeight: 600 }}>
+                          {st && a.state === "published" ? fmt(st.readers) : "—"}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <div className="bl-eps__foot">
+            <Link to={`/blog?series=${s.id}`} className="k">
+              Open the episodes in the article list
+            </Link>
+          </div>
+        </section>
+
+        <section className="card bl-drip" aria-labelledby={`drip-h-${s.id}`}>
+          <div className="bl-drip__head">
+            <button
+              type="button"
+              role="switch"
+              className={"bl-sw" + (drip.enabled ? " on" : "")}
+              aria-checked={drip.enabled}
+              aria-labelledby={`drip-h-${s.id}`}
+              disabled={saving}
+              onClick={() =>
+                drip.enabled ? void saveDrip({ ...drip, enabled: false }, "Series drip off.") : setConfirmOn(true)
+              }
+            >
+              <span className="tr">
+                <span className="kn" />
+              </span>
+            </button>
+            <div className="bl-col">
+              <h2 id={`drip-h-${s.id}`}>Email the episodes</h2>
+              <span className="k">
+                {drip.enabled ? "On · the series drip sends one episode per send day" : "Off · nobody gets episode emails"}
+              </span>
+            </div>
+          </div>
+          <fieldset className="bl-days">
+            <legend className="lab">Send days</legend>
+            <div className="bl-days__row">
+              {DAYS.map((d, i) => (
+                <label key={d} className="bl-ck">
+                  <input
+                    type="checkbox"
+                    checked={drip.weekdays.includes(i)}
+                    disabled={!drip.enabled || saving}
+                    onChange={(e) =>
+                      void saveDrip(
+                        { ...drip, weekdays: e.target.checked ? [...drip.weekdays, i].sort() : drip.weekdays.filter((x) => x !== i) },
+                        "Send days saved.",
+                      )
+                    }
+                  />
+                  {d}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+          <div className="bl-col" style={{ gap: 6 }}>
+            <label className="lab" htmlFor={`sendt-${s.id}`}>
+              Send time
+            </label>
+            <div className="bl-inline">
+              <select
+                id={`sendt-${s.id}`}
+                className="inp bl-auto"
+                disabled={!drip.enabled || saving}
+                value={drip.hour}
+                onChange={(e) => void saveDrip({ ...drip, hour: Number(e.target.value) }, "Send time saved.")}
+              >
+                {times.map((h) => (
+                  <option key={h} value={h}>
+                    {String(h).padStart(2, "0")}:00
+                  </option>
+                ))}
+              </select>
+              <span className="k">in each subscriber's time zone</span>
+            </div>
+          </div>
+          <p className="bl-next">
+            {drip.enabled
+              ? next
+                ? `Next send: ${next} · ${s.drip_stats.readers.toLocaleString("en-IN")} subscribers get their next episode.`
+                : "Pick at least one send day."
+              : "Paused. Subscribers keep their place and continue when you turn it back on."}
+          </p>
+          <span className="k">One episode per send day, never more than one Zinwe email a day. A guide follow-up waits for the next free day.</span>
+        </section>
+      </div>
+
+      {confirmOn ? (
+        <ConfirmDialog
+          title="Email the episodes to subscribers?"
+          confirmLabel="Turn on"
+          onClose={() => setConfirmOn(false)}
+          onConfirm={async () => {
+            await saveDrip({ ...drip, enabled: true }, "Series drip on.");
+          }}
+        >
+          <p>
+            Every confirmed subscriber gets the episodes of <b>{s.title}</b> in order, one per send day, starting with Episode 1. New
+            subscribers get Episode 1 the moment they confirm.
           </p>
         </ConfirmDialog>
       ) : null}
@@ -258,10 +530,10 @@ function SeriesEditor({ series, onClose, onSaved }: { series: Series | null; onC
       onClose={onClose}
       footer={
         <>
-          <button type="button" className="btn btn--ghost" onClick={onClose}>
+          <button type="button" className="btn" onClick={onClose}>
             Cancel
           </button>
-          <button type="button" className="btn btn--primary" disabled={!!busy} onClick={() => void save()}>
+          <button type="button" className="btn dark" disabled={!!busy} onClick={() => void save()}>
             {busy === "save" ? "Saving…" : "Save"}
           </button>
         </>
@@ -410,9 +682,9 @@ function SeriesNumbers({ series, onClose }: { series: Series; onClose: () => voi
   return (
     <Modal title={`${series.title}: numbers`} subtitle="Members, reads and Zinwe sign-ups that started from the series" onClose={onClose}>
       {stats.error ? (
-        <p className="alert alert--bad">{stats.error}</p>
+        <p className="err-box">{stats.error}</p>
       ) : !d ? (
-        <p className="muted">Loading…</p>
+        <LoadingState rows={4} bare />
       ) : (
         <>
           <div className="series-kpis">

@@ -1,28 +1,20 @@
 import { useCallback, useMemo, useState, type ReactElement } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import {
-  ARTICLE_TYPES,
-  STATE_PILL,
-  articlePath,
-  listArticles,
-  type Article,
-  type ArticleState,
-  type ArticleType,
-} from "../lib/blogApi";
-import { date, dateTime } from "../lib/format";
+import { ARTICLE_TYPES, articlePath, listArticles, type Article, type ArticleState, type ArticleType } from "../lib/blogApi";
 import { useLoad } from "../lib/useLoad";
-import { PageHeader } from "../components/PageHeader";
-import { portalUrl } from "../content/emailTemplates";
+import { EmptyState, ErrorState, LoadingState } from "../components/States";
+import { Icon } from "../components/icons";
+import { BlogHeader, StatePill, seoCheck, stateWhen } from "./blog/shared";
 import "../blog.css";
 
-const STATUS_TABS: { key: "all" | ArticleState; label: string }[] = [
+const STATUS_CHIPS: { key: "all" | ArticleState; label: string }[] = [
   { key: "all", label: "All" },
   { key: "draft", label: "Drafts" },
   { key: "scheduled", label: "Scheduled" },
   { key: "published", label: "Published" },
 ];
 
-/** Every article (drafts too): filter by status and type, search, open one to edit. */
+/** Blog → Articles (AdminBlog board): filter by status and category, search, open one to edit. */
 export function BlogPage(): ReactElement {
   const navigate = useNavigate();
   const load = useCallback(() => listArticles(), []);
@@ -34,182 +26,163 @@ export function BlogPage(): ReactElement {
   const [params, setParams] = useSearchParams();
   const seriesId = Number(params.get("series")) || null;
 
-  const all = list.data ?? [];
+  const all = useMemo(() => list.data ?? [], [list.data]);
   const rows = seriesId ? all.filter((a) => a.series === seriesId) : all;
-  const shown = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return rows.filter(
-      (a) =>
-        (status === "all" || a.state === status) &&
-        (type === "all" || a.type === type) &&
-        (!q || a.title.toLowerCase().includes(q) || a.tags.includes(q)),
-    );
-  }, [rows, status, type, query]);
-  const count = (fn: (a: Article) => boolean) => rows.filter(fn).length;
+  const q = query.trim().toLowerCase();
+  const base = useMemo(
+    () =>
+      rows.filter(
+        (a) => (type === "all" || a.type === type) && (!q || `${a.title} ${a.slug} ${a.type_label} ${a.tags}`.toLowerCase().includes(q)),
+      ),
+    [rows, type, q],
+  );
+  const inSt = (a: Article, k: "all" | ArticleState) => k === "all" || a.state === k;
+  const shown = base.filter((a) => inSt(a, status));
+  const clear = () => {
+    setStatus("all");
+    setType("all");
+    setQuery("");
+  };
 
   return (
     <>
-      <PageHeader
-        title="Blog"
-        subtitle="Write articles for search and for customers, then publish them on the website's blog."
-        onReload={list.reload}
-        pending={list.pending}
-      >
-        <input
-          type="search"
-          className="search"
-          placeholder="Search titles or tags"
-          aria-label="Search articles"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
-        <Link className="btn btn--ghost" to="/blog/series">
-          Series
-        </Link>
-        <Link className="btn btn--ghost" to="/blog/guides">
-          Guides
-        </Link>
-        <Link className="btn btn--ghost" to="/blog/subscribers">
-          Subscribers
-        </Link>
-        <Link className="btn btn--primary" to="/blog/new">
-          New article
-        </Link>
-      </PageHeader>
+      <BlogHeader
+        known={{ articles: list.data?.length }}
+        action={
+          <Link className="btn dark" to={seriesId ? `/blog/new?series=${seriesId}` : "/blog/new"}>
+            <Icon name="plus" />
+            {seriesId ? "New episode" : "New article"}
+          </Link>
+        }
+      />
 
       {seriesId ? (
-        <p className="alert series-filter">
+        <p className="note info bl-series-note">
           Showing the episodes of <b>{rows[0]?.series_title ?? "this series"}</b>.{" "}
-          <button type="button" className="link-btn" onClick={() => setParams({})}>
+          <button type="button" className="link" onClick={() => setParams({})}>
             Show every article
           </button>
         </p>
       ) : null}
 
-      <div className="tabs" role="tablist" aria-label="Status">
-        {STATUS_TABS.map((t) => (
-          <button
-            key={t.key}
-            type="button"
-            role="tab"
-            aria-selected={status === t.key}
-            className={"tab" + (status === t.key ? " is-active" : "")}
-            onClick={() => setStatus(t.key)}
-          >
-            {t.label}
-            {list.data ? (
-              <span className="tab__count">{t.key === "all" ? rows.length : count((a) => a.state === t.key)}</span>
-            ) : null}
-          </button>
-        ))}
-      </div>
-
-      <div className="blog-types" role="group" aria-label="Type">
-        <button type="button" className={"chip-btn" + (type === "all" ? " is-on" : "")} onClick={() => setType("all")}>
-          All types
-        </button>
-        {ARTICLE_TYPES.map((t) => (
-          <button
-            key={t.key}
-            type="button"
-            className={"chip-btn chip-btn--" + t.key + (type === t.key ? " is-on" : "")}
-            onClick={() => setType(t.key)}
-            title={t.hint}
-          >
-            {t.label}
-            <span>{count((a) => a.type === t.key)}</span>
-          </button>
-        ))}
-      </div>
+      <section className="card bl-filters" aria-label="Filters">
+        <div role="group" aria-label="Status" className="bl-chips">
+          {STATUS_CHIPS.map((c) => (
+            <button
+              key={c.key}
+              type="button"
+              className={"chip" + (status === c.key ? " on" : "")}
+              aria-pressed={status === c.key}
+              onClick={() => setStatus(c.key)}
+            >
+              {c.label}
+              <span className="num bl-chip-n">{base.filter((a) => inSt(a, c.key)).length}</span>
+            </button>
+          ))}
+        </div>
+        <label className="sr" htmlFor="cat">
+          Category
+        </label>
+        <select id="cat" className="inp bl-auto" value={type} onChange={(e) => setType(e.target.value as "all" | ArticleType)}>
+          <option value="all">All categories</option>
+          {ARTICLE_TYPES.map((t) => (
+            <option key={t.key} value={t.key}>
+              {t.label}
+            </option>
+          ))}
+        </select>
+        <div className="bl-grow">
+          <label className="sr" htmlFor="q">
+            Search articles
+          </label>
+          <input id="q" type="search" className="inp" placeholder="Search titles or tags" value={query} onChange={(e) => setQuery(e.target.value)} />
+        </div>
+      </section>
 
       {list.error ? (
-        <p className="alert alert--bad">{list.error}</p>
+        <ErrorState message={list.error} onRetry={list.reload} />
       ) : !list.data ? (
-        <p className="muted">Loading…</p>
+        <LoadingState rows={6} label="Loading articles…" />
       ) : rows.length === 0 ? (
-        <div className="card empty">
-          <b>No articles yet</b>
-          <span className="muted">Write your first one: a tutorial or a release note is a good start.</span>
-          <div>
-            <Link className="btn btn--primary btn--sm" to="/blog/new">
-              Write an article
-            </Link>
-          </div>
+        <div className="card">
+          <EmptyState
+            icon="edit"
+            title="No articles yet"
+            body="Write your first one: a tutorial or a release note is a good start."
+            action={
+              <Link className="btn dark sm" to="/blog/new">
+                Write an article
+              </Link>
+            }
+          />
         </div>
       ) : (
-        <div className="card table-card">
-          <table className="sheet blog-sheet">
-            <thead>
-              <tr>
-                <th>Article</th>
-                <th>Type</th>
-                <th>Status</th>
-                <th>Published</th>
-                <th>Updated</th>
-                <th>Read</th>
-                <th aria-label="Actions" />
-              </tr>
-            </thead>
-            <tbody>
-              {shown.map((a) => (
-                <tr key={a.id} className="blog-row" onClick={() => navigate(`/blog/${a.id}`)}>
-                  <td>
-                    <div className="blog-row__title">
-                      {a.cover ? <img src={a.cover.url} alt="" className="blog-row__thumb" /> : <span className="blog-row__thumb is-empty" />}
-                      <span>
-                        <b>{a.title}</b>
+        <section className="card" aria-label="Articles" style={{ overflow: "hidden" }}>
+          <div className="tbl-wrap">
+            <table className="tbl bl-tbl" style={{ minWidth: 920 }}>
+              <thead>
+                <tr>
+                  <th scope="col">Article</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Category</th>
+                  <th scope="col">Author</th>
+                  <th scope="col" className="r">
+                    Views
+                  </th>
+                  <th scope="col">SEO check</th>
+                </tr>
+              </thead>
+              <tbody>
+                {shown.map((a) => {
+                  const sc = seoCheck(a);
+                  return (
+                    <tr key={a.id}>
+                      <td style={{ maxWidth: 380 }}>
+                        <button type="button" className="bl-tlink" onClick={() => navigate(`/blog/${a.id}`)}>
+                          {a.title}
+                        </button>
                         {a.series_title ? (
-                          <small className="block episode-tag">
+                          <div className="k bl-ep">
                             {a.series_title} · {a.season > 1 ? `S${a.season} · ` : ""}E{String(a.episode ?? 0).padStart(2, "0")}
                             {a.free_preview ? " · free" : " · members"}
-                          </small>
+                          </div>
                         ) : null}
-                        <small className="muted block mono">{articlePath(a)}</small>
-                      </span>
-                    </div>
-                  </td>
-                  <td>
-                    <span className={"type-tag type-tag--" + a.type}>{a.type_label}</span>
-                  </td>
-                  <td>
-                    <span className={"pill " + STATE_PILL[a.state].tone}>{STATE_PILL[a.state].label}</span>
-                  </td>
-                  <td className="nowrap">
-                    {a.state !== "draft" && a.published_at ? (
-                      a.state === "scheduled" ? (
-                        <span title="Goes live on its own at this time">{dateTime(a.published_at)}</span>
-                      ) : (
-                        date(a.published_at)
-                      )
-                    ) : (
-                      <span className="muted">—</span>
-                    )}
-                  </td>
-                  <td className="nowrap">{date(a.updated_at)}</td>
-                  <td className="nowrap">{a.reading_minutes} min</td>
-                  <td className="nowrap" onClick={(e) => e.stopPropagation()}>
-                    <Link className="link-btn" to={`/blog/${a.id}`}>
-                      Edit
-                    </Link>
-                    {a.state === "published" ? (
-                      <a className="link-btn blog-row__view" href={`${portalUrl()}${articlePath(a)}`} target="_blank" rel="noreferrer">
-                        View ↗
-                      </a>
-                    ) : null}
-                  </td>
-                </tr>
-              ))}
-              {shown.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="sheet__empty">
-                    No article matches these filters.
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </table>
-        </div>
+                        <div className="k mono">{articlePath(a)}</div>
+                      </td>
+                      <td className="bl-nowrap">
+                        <StatePill state={a.state} />
+                        <div className="k">{stateWhen(a)}</div>
+                      </td>
+                      <td className="bl-nowrap">{a.type_label}</td>
+                      <td className="bl-nowrap">{a.author_name || "Zinwe team"}</td>
+                      <td className="num r" style={{ fontWeight: 600 }} title="Views aren't counted yet">
+                        —
+                      </td>
+                      <td>
+                        <span className={"pill " + (sc.ok === 3 ? "good" : "warn")}>SEO {sc.ok}/3</span>
+                        <div className="k">
+                          {sc.issues.length ? sc.issues[0] + (sc.issues.length > 1 ? ` +${sc.issues.length - 1}` : "") : "All good"}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            {shown.length === 0 ? (
+              <div className="bl-none">
+                <span>No articles match.</span>
+                <button type="button" className="btn" onClick={clear}>
+                  Clear filters
+                </button>
+              </div>
+            ) : null}
+          </div>
+        </section>
       )}
+      <p className="k" style={{ margin: 0 }}>
+        SEO check: search title 30–60 characters, meta description 70–160 characters, cover image with alt text.
+      </p>
     </>
   );
 }

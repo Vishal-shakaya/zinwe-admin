@@ -87,13 +87,13 @@ export function NewsletterCard({ article, dirty }: { article: Article; dirty: bo
   const drip = state?.series_drip ?? null;
   if (drip) {
     return (
-      <section className="side-card">
-        <h3>
+      <section className="card bl-side" aria-label="Newsletter">
+        <h2 className="bl-side__head">
           Newsletter
           <Link to="/blog/subscribers" className="nl-audience" title="Confirmed subscribers">
             {plural(audience, "subscriber")}
           </Link>
-        </h3>
+        </h2>
         <p className="side-card__note">
           {drip.enabled ? (
             <>
@@ -110,7 +110,7 @@ export function NewsletterCard({ article, dirty }: { article: Article; dirty: bo
           Subject: “<b>{drip.subject}</b>” · sent to {plural(drip.sent, "subscriber")} so far.
         </p>
         <div className="side-card__actions">
-          <button type="button" className="btn btn--ghost btn--sm" disabled={!!busy || dirty} onClick={() => void test()}>
+          <button type="button" className="btn sm" disabled={!!busy || dirty} onClick={() => void test()}>
             {busy === "test" ? "Sending…" : "Send test to me"}
           </button>
         </div>
@@ -119,13 +119,13 @@ export function NewsletterCard({ article, dirty }: { article: Article; dirty: bo
   }
 
   return (
-    <section className="side-card">
-      <h3>
+    <section className="card bl-side" aria-label="Newsletter">
+      <h2 className="bl-side__head">
         Newsletter
         <Link to="/blog/subscribers" className="nl-audience" title="Confirmed subscribers">
           {state ? plural(audience, "subscriber") : "…"}
         </Link>
-      </h3>
+      </h2>
 
       {error ? <p className="side-card__note is-bad">{error}</p> : null}
 
@@ -177,12 +177,12 @@ export function NewsletterCard({ article, dirty }: { article: Article; dirty: bo
           </p>
           {dirty ? <p className="side-card__note is-warn">Save first: emails use the saved version.</p> : null}
           <div className="side-card__actions">
-            <button type="button" className="btn btn--ghost btn--sm" disabled={!!busy || dirty} onClick={() => void test()}>
+            <button type="button" className="btn sm" disabled={!!busy || dirty} onClick={() => void test()}>
               {busy === "test" ? "Sending…" : "Send test to me"}
             </button>
             <button
               type="button"
-              className="btn btn--primary btn--sm"
+              className="btn dark sm"
               disabled={!!busy || dirty || draft || audience === 0 || !subject.trim()}
               onClick={() => setConfirming(true)}
             >
