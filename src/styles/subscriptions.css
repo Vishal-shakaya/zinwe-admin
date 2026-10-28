@@ -1,0 +1,196 @@
+/* AdminSubscriptions board (v1.3, FR-43) */
+.ss-glance {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+.ss-kpi {
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+  color: var(--ink);
+}
+button.ss-kpi:hover {
+  border-color: var(--ink);
+}
+.ss-kpi--hot {
+  border-color: #ebcf97;
+  background: #fffcf5;
+}
+.ss-kpi b {
+  font-size: 24px;
+  letter-spacing: -0.02em;
+}
+.ss-card {
+  overflow: hidden;
+}
+.ss-tabs {
+  padding: 0 16px;
+  border-bottom: 1px solid var(--line);
+  overflow-x: auto;
+}
+.ss-tabs > div {
+  display: flex;
+  gap: 22px;
+}
+.ss-tabs .pill {
+  background: var(--fill-2);
+  color: var(--ink-3);
+}
+.ss-tabs .pill.is-check {
+  background: var(--warn-tint);
+  color: var(--warn);
+}
+.ss-tabs .tab.on .pill {
+  background: var(--ink);
+  color: #fff;
+}
+.ss-tools {
+  padding: 12px 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  border-bottom: 1px solid var(--line-soft);
+}
+.ss-search {
+  flex: 1 1 300px;
+  min-width: 0;
+  display: flex;
+  position: relative;
+}
+.ss-search svg {
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  color: var(--mute);
+}
+.ss-search .inp {
+  padding-left: 36px;
+}
+.ss-tools select.inp {
+  width: auto;
+}
+.ss-tbl {
+  width: 100%;
+  min-width: 1124px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.ss-tbl th,
+.ss-tbl td {
+  padding: 10px 12px;
+  text-align: left;
+  vertical-align: middle;
+}
+.ss-tbl thead th {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--mute);
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+.ss-tbl tbody tr {
+  border-bottom: 1px solid var(--line-soft);
+}
+.ss-tbl tbody tr:hover {
+  background: var(--hover);
+}
+.ss-tbl tfoot th,
+.ss-tbl tfoot td {
+  background: var(--hover-2);
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+.ss-tbl tfoot tr:first-child th,
+.ss-tbl tfoot tr:first-child td {
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+.ss-tbl .r {
+  text-align: right;
+}
+.ss-co {
+  font-weight: 600;
+  color: var(--ink);
+  text-decoration: none;
+}
+.ss-co:hover {
+  text-decoration: underline;
+  color: var(--ink);
+}
+.ss-method {
+  max-width: 130px;
+}
+.ss-method .pill {
+  background: var(--fill-2);
+  color: var(--ink-2);
+}
+.ss-method .pill.is-online {
+  background: var(--info-tint);
+  color: var(--link);
+}
+.ss-tag {
+  display: flex;
+  width: fit-content;
+  margin-top: 3px;
+}
+.ss-lnk {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--link);
+  text-decoration: underline;
+  font-size: 12px;
+  text-align: left;
+}
+.ss-lnk:hover {
+  color: var(--link-hover);
+}
+.ss-inv {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-start;
+}
+.ss-inv .ss-lnk {
+  font-size: 11px;
+  min-height: 24px;
+}
+.ss-actions {
+  text-align: right;
+  white-space: nowrap;
+}
+.ss-actions > * + * {
+  margin-left: 6px;
+}
+.ss-empty {
+  padding: 32px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink-3);
+  border-top: 1px solid var(--line-soft);
+}
+.ss-foot {
+  margin: 0;
+}
+.ss-steps {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.ss-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
