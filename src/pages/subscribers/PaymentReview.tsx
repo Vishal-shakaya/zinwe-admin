@@ -228,7 +228,7 @@ export function PendingPayment({
           <fieldset className="sb-step">
             <legend>1. Check the receipt</legend>
             <span className="k sb-step__lede">
-              Type what the receipt shows. The reference must match what the customer typed.
+              Type what the receipt shows. Check the reference against what the customer typed.
             </span>
             <label className="sb-fl">
               Amount on the receipt
