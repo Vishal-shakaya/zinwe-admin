@@ -30,6 +30,9 @@ export function evaluate(p: Payment, ck: ReceiptCheck) {
   const refTyped = normRef(ck.reference);
   // When the customer typed no reference, the one on the receipt is all we have: any non-empty one passes.
   const refOk = refTyped !== "" && (customerRef === "" || refTyped === customerRef);
+  // A UTR that differs from what the customer typed warns but does not block (customers mistype references;
+  // before v1.3 staff could always approve with the receipt's UTR). Approve still needs a UTR typed.
+  const refFilled = refTyped !== "";
   const today = isoDay(new Date());
   const seen = parseAmount(ck.seen);
   const onOk = Boolean(ck.on) && ck.on >= p.paid_on && ck.on <= today;
@@ -61,9 +64,9 @@ export function evaluate(p: Payment, ck: ReceiptCheck) {
   }
 
   const amountFilled = typedAmt > 0;
-  const ready = refOk && amountFilled && ck.found && onOk && seenOk && !short;
+  const ready = refFilled && amountFilled && ck.found && onOk && seenOk && !short;
   let hint = "Receipt and statement agree.";
-  if (!refOk || !amountFilled) hint = "Step 1: type the amount and the UTR from the receipt.";
+  if (!refFilled || !amountFilled) hint = "Step 1: type the amount and the UTR from the receipt.";
   else if (!ck.found || !onOk || !seenOk) hint = "Step 2: find the payment in the bank or UPI statement.";
   else if (short) hint = "Short-paid. Part payments can’t be approved.";
   else if (overPaid) hint = `Over-paid by ${money(diff, c)}. Approve, then refund the difference.`;
@@ -78,14 +81,14 @@ export function evaluate(p: Payment, ck: ReceiptCheck) {
   const amtTone: MsgTone = !ck.amount ? "idle" : amtOk ? "ok" : Number.isNaN(typedAmt) ? "bad" : "warn";
   const refMsg = !ck.reference
     ? customerRef
-      ? "Must match the reference the customer typed"
+      ? `Compare with ${p.reference}, the reference the customer typed`
       : "The customer typed no reference: type the one on the receipt"
     : refOk
       ? customerRef
         ? "Matches the reference the customer typed"
         : "Saved with the approval"
-      : `Does not match ${p.reference}`;
-  const refTone: MsgTone = !ck.reference ? "idle" : refOk ? "ok" : "bad";
+      : `Different from ${p.reference}, which the customer typed. Make sure it is the same payment.`;
+  const refTone: MsgTone = !ck.reference ? "idle" : refOk ? "ok" : "warn";
 
   return { c, due, typedAmt, seen, diff, short, overPaid, ready, hint, stmtMsg, stmtTone, amtMsg, amtTone, refMsg, refTone };
 }
