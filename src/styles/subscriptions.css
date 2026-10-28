@@ -24,7 +24,12 @@ button.ss-kpi:hover {
   letter-spacing: -0.02em;
 }
 .ss-card {
+  position: relative; /* keeps the visually-hidden caption inside the scroller on phones */
   overflow: hidden;
+}
+.ss-scroll {
+  position: relative;
+  overflow-x: auto;
 }
 .ss-tabs {
   padding: 0 16px;

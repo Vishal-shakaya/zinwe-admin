@@ -400,7 +400,7 @@ export function SubscriptionsPage(): ReactElement {
                 {plural(rows.length, "payment")}
               </span>
             </div>
-            <div style={{ overflowX: "auto" }}>
+            <div className="ss-scroll">
               <table className="ss-tbl">
                 <caption className="sr">Payments and the period each one covers</caption>
                 <thead>
@@ -565,13 +565,21 @@ function PaymentRow({
         {r.sub.is_trial ? <span className="k" style={{ display: "block", fontWeight: 400 }}>Trial</span> : null}
       </td>
       <td>{r.cycle}</td>
-      <td className="r num">{money(r.base, r.cur)}</td>
-      <td className="r num" style={r.tax === "IN" ? undefined : { color: "var(--mute)" }}>
-        {r.tax === "IN" ? money(r.gst, "INR") : r.tax === "export" ? "None" : "Not charged"}
-      </td>
-      <td className="r num" style={{ fontWeight: 600 }}>
-        {money(r.total, r.cur)}
-      </td>
+      {pay ? (
+        <>
+          <td className="r num">{money(r.base, r.cur)}</td>
+          <td className="r num" style={r.tax === "IN" ? { whiteSpace: "nowrap" } : { color: "var(--mute)", whiteSpace: "nowrap" }}>
+            {r.tax === "IN" ? money(r.gst, "INR") : r.tax === "export" ? "None" : "Not charged"}
+          </td>
+          <td className="r num" style={{ fontWeight: 600 }}>
+            {money(r.total, r.cur)}
+          </td>
+        </>
+      ) : (
+        <td colSpan={3} className="r k" title={`Next payment: ${money(r.total, r.cur)}`}>
+          No payment on file
+        </td>
+      )}
       <td className="ss-method">
         {r.method === "—" ? (
           <span className="k">—</span>
