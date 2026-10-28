@@ -524,6 +524,7 @@ select.inp {
 /* ---------- Tables ---------- */
 
 .tbl-wrap {
+  position: relative; /* keeps absolutely positioned .sr captions inside the scroller (no phone overflow) */
   overflow-x: auto;
 }
 .tbl {
