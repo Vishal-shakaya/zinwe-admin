@@ -17,18 +17,11 @@ function generatePassword(): string {
 }
 
 /**
- * J8-05: the safe default is an email with a code so the customer picks their own password (the website's
- * Forgot password flow). Setting one by hand is behind "Set one myself", and the customer is told by email.
+ * Board "Sign-in help" (Actions tab). J8-05: the safe default is an email with a code so the customer picks
+ * their own password (the website's Forgot password flow). Setting one by hand is behind "Set one myself", and
+ * the customer is told by email.
  */
-export function PasswordReset({
-  row,
-  onUpdated,
-  onDone,
-}: {
-  row: Subscriber;
-  onUpdated: (row: Subscriber) => void;
-  onDone: () => void;
-}): ReactElement {
+export function PasswordReset({ row, onUpdated }: { row: Subscriber; onUpdated: (row: Subscriber) => void }): ReactElement {
   const toast = useToast();
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
@@ -45,8 +38,9 @@ export function PasswordReset({
     try {
       await sendPasswordReset(row.id);
       setSent(true);
+      toast(`Password reset code sent to ${row.email}.`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't send it.");
+      setError(err instanceof Error ? err.message : "Couldn’t send it.");
     } finally {
       setBusy(false);
     }
@@ -58,7 +52,7 @@ export function PasswordReset({
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1500);
     } catch {
-      toast("Couldn't copy; select the password and copy it.", "bad");
+      toast("Couldn’t copy; select the password and copy it.", "bad");
     }
   };
 
@@ -68,87 +62,86 @@ export function PasswordReset({
     try {
       onUpdated(await setPassword(row.id, value, tell));
       toast(`New password saved; ${row.email} was signed out everywhere${tell ? " and emailed" : ""}.`);
-      onDone();
+      setManual(false);
+      setValue("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't set the password.");
+      setError(err instanceof Error ? err.message : "Couldn’t set the password.");
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <section className="msec pw-reset" aria-label="Reset password">
-      <h3 className="msec__title">
-        Reset password <span className="msec__aside">Passwords are stored encrypted and can't be shown</span>
-      </h3>
-
-      {sent ? (
-        <p className="alert alert--good" role="status">
-          Sent to <b>{row.email}</b>. Ask them to open <b>{site}/forgot-password</b>, enter their email and the 6-digit
-          code from the email (it works for 10 minutes), then choose a new password.
-        </p>
-      ) : (
-        <div className="pw-reset__row">
-          <p className="pw-reset__lede">
-            Email them a code to choose a new password themselves. Nobody on the team sees it, and their current password
-            keeps working until they change it.
-          </p>
-          <button type="button" className="btn btn--primary btn--sm" disabled={busy} onClick={() => void sendCode()}>
-            {busy && !manual ? "Sending…" : "Email a password reset"}
-          </button>
-        </div>
-      )}
-
-      {!manual ? (
-        <button type="button" className="link-btn pw-reset__more" onClick={() => setManual(true)}>
-          Set one myself…
+    <>
+      <div className="sb-arow">
+        {sent ? (
+          <span className="sb-arow__text" role="status">
+            Sent to <b>{row.email}</b>. Ask them to open <b>{site}/forgot-password</b>, enter their email and the
+            6-digit code from the email (it works for 10 minutes), then choose a new password.
+          </span>
+        ) : (
+          <span className="sb-arow__text">
+            Email a password reset code to <b>{row.email}</b>. They choose a new password themselves; their current one
+            keeps working until they do.
+          </span>
+        )}
+        <button type="button" className="btn" disabled={busy} onClick={() => void sendCode()}>
+          {busy && !manual ? "Sending…" : sent ? "Send it again" : "Send password reset code"}
         </button>
-      ) : (
-        <div className="pw-reset__manual">
-          <p className="pop__hint">
-            Only if they can't get email. They're signed out of every device; share the password privately (never by
-            email).
-          </p>
-          <div className="pw-reset__row">
-            <input
-              className="pop__input mono"
-              type="text"
-              autoComplete="new-password"
-              spellCheck={false}
-              placeholder="New password, at least 8 characters"
-              aria-label={`New password for ${row.email}`}
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              autoFocus
-            />
-            <button type="button" className="btn btn--ghost btn--sm" onClick={() => setValue(generatePassword())}>
-              Generate
+      </div>
+      <div className="sb-arow sb-arow--rule">
+        {!manual ? (
+          <>
+            <span className="sb-arow__text">
+              Only if they can’t get email: set a password yourself and share it privately (never by email).
+            </span>
+            <button type="button" className="btn" onClick={() => setManual(true)}>
+              Set one myself…
             </button>
-            {value ? (
-              <button type="button" className="btn btn--ghost btn--sm" onClick={() => void copy()}>
-                {copied ? "Copied" : "Copy"}
+          </>
+        ) : (
+          <div className="sb-pw">
+            <div className="sb-pw__row">
+              <input
+                className="inp mono"
+                type="text"
+                autoComplete="new-password"
+                spellCheck={false}
+                placeholder="New password, at least 8 characters"
+                aria-label={`New password for ${row.email}`}
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                autoFocus
+              />
+              <button type="button" className="btn sm" onClick={() => setValue(generatePassword())}>
+                Generate
               </button>
-            ) : null}
-            <button
-              type="button"
-              className="btn btn--primary btn--sm"
-              disabled={busy || value.length < 8}
-              onClick={() => void save()}
-            >
-              {busy && manual ? "Saving…" : "Save password"}
-            </button>
+              {value ? (
+                <button type="button" className="btn sm" onClick={() => void copy()}>
+                  {copied ? "Copied" : "Copy"}
+                </button>
+              ) : null}
+            </div>
+            <label className="sb-check">
+              <input type="checkbox" checked={tell} onChange={(e) => setTell(e.target.checked)} />
+              Email them that their password was changed (without the password)
+            </label>
+            <div className="sb-pw__row sb-pw__row--end">
+              <button type="button" className="btn" disabled={busy} onClick={() => setManual(false)}>
+                Cancel
+              </button>
+              <button type="button" className="btn dark" disabled={busy || value.length < 8} onClick={() => void save()}>
+                {busy && manual ? "Saving…" : "Save password"}
+              </button>
+            </div>
           </div>
-          <label className="confirm__check">
-            <input type="checkbox" checked={tell} onChange={(e) => setTell(e.target.checked)} />
-            Email them that their password was changed (without the password)
-          </label>
-        </div>
-      )}
+        )}
+      </div>
       {error ? (
-        <p className="row-error" role="alert">
+        <p className="sb-msg sb-msg--bad" role="alert">
           {error}
         </p>
       ) : null}
-    </section>
+    </>
   );
 }

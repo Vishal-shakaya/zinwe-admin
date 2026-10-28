@@ -1,114 +1,77 @@
 import { useState, type ReactElement } from "react";
-import {
-  blockSubscriber,
-  changePlan,
-  deleteSubscriber,
-  type PlanSummary,
-  type Subscriber,
-} from "../../lib/api";
-import { date, inr, money } from "../../lib/format";
+import { blockSubscriber, changePlan, type PlanSummary, type Subscriber } from "../../lib/api";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
-import { Modal } from "../../components/Modal";
 import { useToast } from "../../components/Toast";
+import { PLAN_HISTORY } from "../../content/fixtures/subscribers";
+import { companyName, dLong } from "./model";
 
-export type Confirm = { kind: "plan"; plan: PlanSummary } | { kind: "delete" } | { kind: "block" } | null;
+const hist = (code: string | undefined) => (code ? (PLAN_HISTORY[code] ?? "—") : "—");
 
-/** Plan-change, block and delete confirmations, shared by the table row and the customer window. */
-export function CustomerConfirm({
-  confirm,
-  row,
-  plans,
-  onUpdated,
-  onDeleted,
-  onClose,
-  onBlockInstead,
-}: {
-  confirm: Confirm;
-  row: Subscriber;
-  plans: PlanSummary[];
-  onUpdated: (row: Subscriber) => void;
-  onDeleted: (id: number) => void;
-  onClose: () => void;
-  /** "Block instead" from a delete that isn't allowed. */
-  onBlockInstead: () => void;
-}): ReactElement | null {
-  if (confirm?.kind === "plan") {
-    return <PlanConfirm plan={confirm.plan} row={row} plans={plans} onUpdated={onUpdated} onClose={onClose} />;
-  }
-  if (confirm?.kind === "block") return <BlockConfirm row={row} onUpdated={onUpdated} onClose={onClose} />;
-  if (confirm?.kind === "delete") {
-    return <DeleteConfirm row={row} onDeleted={onDeleted} onClose={onClose} onBlockInstead={onBlockInstead} />;
-  }
-  return null;
-}
-
-/** J8-11: say what the change does (an honest downgrade warning), optionally tell the customer, and confirm. */
-function PlanConfirm({
+/**
+ * Board "Move <company> to <plan>?" — J8-11: says what the change does (an honest downgrade warning) and confirms.
+ * `email` comes from the "Email the owner about the change" box in the Actions tab.
+ */
+export function PlanConfirm({
   plan,
   row,
   plans,
+  email,
   onUpdated,
   onClose,
 }: {
   plan: PlanSummary;
   row: Subscriber;
   plans: PlanSummary[];
+  email: boolean;
   onUpdated: (row: Subscriber) => void;
   onClose: () => void;
 }): ReactElement {
   const toast = useToast();
-  const [email, setEmail] = useState(true);
   const current = plans.find((p) => p.code === row.plan?.code) ?? null;
   const sub = row.subscription;
+  const co = companyName(row);
   const downgrade = current !== null && Number(plan.price_inr_monthly) < Number(current.price_inr_monthly);
   const paidUntil =
     sub && sub.status === "active" && !sub.is_trial && Number(sub.amount_inr) > 0 && sub.ends_at ? sub.ends_at : null;
-  const overLimit = plan.max_devices > 0 && row.team.devices > plan.max_devices;
+  const over = plan.max_devices > 0 ? row.team.devices - plan.max_devices : 0;
   const grantsPaid = Number(plan.price_inr_monthly) > 0;
 
   return (
     <ConfirmDialog
-      title={`Switch to ${plan.name}?`}
-      confirmLabel={`Switch to ${plan.name}`}
+      title={`Move ${co} to ${plan.name}?`}
+      confirmLabel="Change plan"
       danger={downgrade && paidUntil !== null}
       onClose={onClose}
       onConfirm={async () => {
         onUpdated(await changePlan(row.id, plan.code, email));
-        toast(`${row.email} is now on ${plan.name}.${email ? " They were emailed." : ""}`);
+        toast(`${co} is now on ${plan.name}.${email ? " The owner was emailed." : ""}`);
       }}
     >
       <p>
-        <b>{row.full_name || row.email}</b> moves from <b>{row.plan?.name ?? "no plan"}</b> to <b>{plan.name}</b> (
-        {plan.max_devices} PCs) right away.
+        From {row.plan?.name ?? "no plan"}
+        {row.plan ? ` (${row.plan.max_devices} PCs, ${hist(row.plan.code)} history)` : ""} to {plan.name} (
+        {plan.max_devices} PCs, {hist(plan.code)} history). {email ? `${row.email} gets an email.` : "No email is sent."}
       </p>
+      {paidUntil && !downgrade ? <p className="confirm__note num">Paid until stays {dLong(paidUntil)}.</p> : null}
       {downgrade && paidUntil ? (
-        <p className="confirm__note confirm__note--warn">
-          They paid for {current?.name} until <b>{date(paidUntil)}</b>. Switching now ends that today: the paid days are
-          not carried over or refunded.
+        <p className="confirm__note warn">
+          They paid for {current?.name} until {dLong(paidUntil)}. Switching now ends that today: the paid days are not
+          carried over or refunded.
         </p>
       ) : null}
-      {overLimit ? (
-        <p className="confirm__note confirm__note--warn">
-          They have <b>{row.team.devices} PCs</b> connected; {plan.name} covers {plan.max_devices}. The connected PCs keep
-          working, but they can't add new ones until they're under the limit.
-        </p>
-      ) : null}
+      {over > 0 ? <p className="confirm__note warn">Over the new limit by {over} PCs.</p> : null}
       {grantsPaid ? (
         <p className="confirm__note">
-          This grants {plan.name} for one month <b>without a payment</b>. To charge for it, let the customer choose it and
+          This grants {plan.name} for one month without a payment. To charge for it, let the customer choose it and
           approve their payment instead.
         </p>
       ) : null}
-      <label className="confirm__check">
-        <input type="checkbox" checked={email} onChange={(e) => setEmail(e.target.checked)} />
-        Email the customer about the change
-      </label>
     </ConfirmDialog>
   );
 }
 
 /** J8-04: a reason, an optional "account paused" email (on by default), and a confirmation. */
-function BlockConfirm({
+export function BlockConfirm({
   row,
   onUpdated,
   onClose,
@@ -122,7 +85,7 @@ function BlockConfirm({
   const [email, setEmail] = useState(true);
   return (
     <ConfirmDialog
-      title={`Block ${row.company?.name || row.full_name || row.email}?`}
+      title={`Block ${companyName(row)}?`}
       confirmLabel="Block account"
       danger
       disabled={!reason.trim()}
@@ -133,13 +96,18 @@ function BlockConfirm({
       }}
     >
       <p>
-        <b>{row.email}</b> is signed out everywhere and can't sign in until you unblock them. When they try, they're told
-        the account is paused and to write to hello@zinwe.io. Their PCs and data stay as they are.
+        {row.email} is signed out everywhere and can’t sign in until you unblock them. When they try, they’re told the
+        account is paused and to write to hello@zinwe.io. Their PCs and data stay as they are.
       </p>
-      <label className="confirm__field">
-        Reason <small>{email ? "(the customer sees this in the email)" : "(kept for your team)"}</small>
+      <label className="sb-fl">
+        <span>
+          Reason{" "}
+          <span className="k" style={{ fontWeight: 400 }}>
+            {email ? "The customer sees this in the email." : "Kept for your team."}
+          </span>
+        </span>
         <textarea
-          rows={3}
+          className="sb-txt"
           maxLength={500}
           value={reason}
           placeholder="e.g. The payment for October was reversed by the bank."
@@ -147,94 +115,10 @@ function BlockConfirm({
           autoFocus
         />
       </label>
-      <label className="confirm__check">
+      <label className="sb-check">
         <input type="checkbox" checked={email} onChange={(e) => setEmail(e.target.checked)} />
         Email the customer that the account is paused, with this reason
       </label>
-    </ConfirmDialog>
-  );
-}
-
-/**
- * J8-12: say what goes with the account (payments waiting, approved payments), and refuse outright when there are
- * tax invoices: those must be kept for 8 years, so the account can only be blocked.
- */
-function DeleteConfirm({
-  row,
-  onDeleted,
-  onClose,
-  onBlockInstead,
-}: {
-  row: Subscriber;
-  onDeleted: (id: number) => void;
-  onClose: () => void;
-  onBlockInstead: () => void;
-}): ReactElement {
-  const toast = useToast();
-  const waiting = row.payments.filter((p) => p.status === "submitted");
-  const approved = row.payments.filter((p) => p.status === "verified");
-  const invoices = approved.map((p) => p.invoice_number).filter((n): n is string => Boolean(n));
-
-  if (invoices.length || (approved.length && approved.every((p) => p.invoice_number === undefined))) {
-    // An older backend doesn't send invoice numbers: approved payments always have an invoice, so treat them as such.
-    return (
-      <Modal
-        title="This account can't be deleted"
-        size="small"
-        onClose={onClose}
-        footer={
-          <>
-            <button type="button" className="btn btn--ghost" onClick={onClose}>
-              Close
-            </button>
-            {row.is_active ? (
-              <button type="button" className="btn btn--primary" onClick={onBlockInstead}>
-                Block instead…
-              </button>
-            ) : null}
-          </>
-        }
-      >
-        <div className="confirm">
-          <p>
-            <b>{row.email}</b> has {approved.length} approved payment{approved.length === 1 ? "" : "s"} (
-            {inr(row.billing.total_paid_inr)}){invoices.length ? ` with tax invoice${invoices.length === 1 ? "" : "s"} ` : ""}
-            {invoices.length ? <b>{invoices.join(", ")}</b> : null}.
-          </p>
-          <p className="confirm__note">
-            Invoices and the payments behind them are tax records and must be kept for 8 years. Block the account to stop
-            sign-in; their history stays.
-          </p>
-        </div>
-      </Modal>
-    );
-  }
-
-  return (
-    <ConfirmDialog
-      title="Delete this account?"
-      confirmLabel="Delete account"
-      danger
-      confirmText={row.email}
-      onClose={onClose}
-      onConfirm={async () => {
-        await deleteSubscriber(row.id);
-        onDeleted(row.id);
-        toast(`Deleted ${row.email}.`);
-      }}
-    >
-      <p>
-        This permanently removes <b>{row.email}</b> with their company, subscriptions, payment records, team, PCs and
-        feedback. It can't be undone.
-      </p>
-      {waiting.length ? (
-        <p className="confirm__note confirm__note--warn">
-          {waiting.map((p) => money(p.due_total ?? p.amount_inr, p.currency ?? "INR")).join(" and ")}{" "}
-          {waiting.length === 1 ? "is" : "are"} waiting for you to check. Deleting removes{" "}
-          {waiting.length === 1 ? "it" : "them"} too: if they paid, sort that out first.
-        </p>
-      ) : null}
-      <p className="confirm__note">Blocking is usually enough: it stops sign-in and keeps the history.</p>
     </ConfirmDialog>
   );
 }

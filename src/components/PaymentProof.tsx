@@ -1,12 +1,17 @@
 import { useEffect, useState, type ReactElement } from "react";
 import { fetchProof } from "../lib/api";
+import "../styles/payment-proof.css";
 
-type ProofState = { url: string; type: string } | "loading" | "error";
+type ProofState = { url: string; type: string; size: number } | "loading" | "error";
+
+function kb(bytes: number): string {
+  return bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
+}
 
 /**
- * The customer's uploaded receipt, fetched with the staff token (it's never public), shown large enough
- * to read (J8-01): an image fits the box without cropping, a PDF opens inline. "Open full size" opens it in
- * a new tab for zooming.
+ * The customer's uploaded receipt, fetched with the staff token (it's never public), shown large enough to read
+ * (J8-01) on the board's striped tray: an image fits without cropping, a PDF opens inline. "Open full size" opens
+ * it in a new tab for zooming.
  */
 export function PaymentProof({ paymentId, hasProof }: { paymentId: number; hasProof: boolean }): ReactElement {
   const [state, setState] = useState<ProofState>("loading");
@@ -19,7 +24,7 @@ export function PaymentProof({ paymentId, hasProof }: { paymentId: number; hasPr
     fetchProof(paymentId)
       .then((blob) => {
         url = URL.createObjectURL(blob);
-        if (alive) setState({ url, type: blob.type });
+        if (alive) setState({ url, type: blob.type, size: blob.size });
       })
       .catch(() => {
         if (alive) setState("error");
@@ -32,31 +37,55 @@ export function PaymentProof({ paymentId, hasProof }: { paymentId: number; hasPr
 
   if (!hasProof) {
     return (
-      <p className="receipt receipt--none">
-        <b>No receipt was attached.</b> Check the reference and amount against your bank statement, UPI app or Skydo
-        before approving.
-      </p>
+      <figure className="pproof">
+        <div className="pproof__tray pproof__tray--note">
+          <p>
+            <b>No receipt was attached.</b> Check the reference and amount against the bank statement, UPI app or Skydo
+            before approving.
+          </p>
+        </div>
+      </figure>
     );
   }
-  if (state === "loading") return <div className="receipt receipt--loading" aria-label="Loading the receipt" />;
+  if (state === "loading") {
+    return (
+      <figure className="pproof" aria-busy="true">
+        <div className="pproof__tray">
+          <span className="pproof__loading shimmer" aria-label="Loading the receipt" />
+        </div>
+      </figure>
+    );
+  }
   if (state === "error") {
-    return <p className="receipt receipt--none row-error">The receipt couldn't be loaded. Reload the page and try again.</p>;
+    return (
+      <figure className="pproof">
+        <div className="pproof__tray pproof__tray--note">
+          <p className="pproof__err" role="alert">
+            The receipt couldn’t be loaded. Reload the page and try again.
+          </p>
+        </div>
+      </figure>
+    );
   }
 
   const isPdf = state.type === "application/pdf";
   return (
-    <figure className="receipt">
-      {state.type.startsWith("image/") ? (
-        <img className="receipt__img" src={state.url} alt="Payment receipt uploaded by the customer" />
-      ) : isPdf ? (
-        <iframe className="receipt__pdf" src={state.url} title="Payment receipt (PDF) uploaded by the customer" />
-      ) : (
-        <p className="receipt--none">This receipt can't be previewed here.</p>
-      )}
-      <figcaption className="receipt__bar">
-        <span>Receipt from the customer{isPdf ? " (PDF)" : ""}</span>
-        <a href={state.url} target="_blank" rel="noreferrer">
-          Open full size ↗
+    <figure className="pproof">
+      <div className="pproof__tray">
+        {state.type.startsWith("image/") ? (
+          <img className="pproof__img" src={state.url} alt="Payment receipt uploaded by the customer" />
+        ) : isPdf ? (
+          <iframe className="pproof__pdf" src={state.url} title="Payment receipt (PDF) uploaded by the customer" />
+        ) : (
+          <p>This receipt can’t be previewed here.</p>
+        )}
+      </div>
+      <figcaption className="k pproof__bar">
+        <span>
+          Receipt from the customer · {isPdf ? "PDF" : "image"} · {kb(state.size)}
+        </span>
+        <a className="btn sm" href={state.url} target="_blank" rel="noreferrer">
+          Open full size
         </a>
       </figcaption>
     </figure>
