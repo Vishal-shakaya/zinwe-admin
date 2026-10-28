@@ -72,7 +72,7 @@ export function App(): ReactElement {
       <Layout me={auth.me} onSignOut={signOut}>
         <PageErrorBoundary resetKey={pathname}>
           <Routes>
-            <Route path="/" element={<DashboardPage />} />
+            <Route path="/" element={<DashboardPage me={auth.me} />} />
             {/* Plan activation now lives in Subscribers (Waiting filter); keep old links working. */}
             <Route path="/activations" element={<Navigate to="/subscribers?status=waiting" replace />} />
             <Route path="/subscribers" element={<SubscribersPage />} />

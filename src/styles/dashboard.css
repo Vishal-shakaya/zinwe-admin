@@ -1,0 +1,494 @@
+/* AdminDashboard board */
+.zdash {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.zdash__titlebox {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.zdash__date {
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.zdash__titlerow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+}
+.zdash__title {
+  margin: 0;
+  font-size: 28px;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+/* System strip */
+.zdash__sys {
+  padding: 10px 14px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 22px;
+}
+.zdash__sysitem {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+.zdash__sysmore {
+  margin-left: auto;
+  font-weight: 600;
+  font-size: 13px;
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Needs you now */
+.zdash__needs {
+  padding: 18px 20px 8px;
+  display: flex;
+  flex-direction: column;
+}
+.zdash__needshead {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 6px 12px;
+  padding-bottom: 10px;
+}
+.zdash__needshead h2 {
+  margin: 0;
+  font-size: 18px;
+}
+.zdash__needslist {
+  display: flex;
+  flex-direction: column;
+}
+.zdash__payhead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 0 6px;
+  border-top: 1px solid var(--line-soft);
+}
+.zdash__payhead h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+}
+.zdash__pay,
+.zdash__other {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 18px;
+  padding: 12px 0;
+}
+.zdash__pay {
+  border-top: 1px dashed var(--line);
+}
+.zdash__other {
+  border-top: 1px solid var(--line-soft);
+}
+.zdash__ico {
+  display: inline-flex;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: var(--fill);
+  color: var(--ink-hover);
+  align-items: center;
+  justify-content: center;
+}
+.zdash__ico--pay {
+  background: var(--warn-tint);
+  color: var(--warn);
+}
+.zdash__ico--bad {
+  background: var(--bad-tint);
+  color: var(--bad);
+}
+.zdash__payco {
+  flex: 1 1 220px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.35;
+}
+.zdash__payamt {
+  flex: 0 1 170px;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.35;
+}
+.zdash__paymeta {
+  flex: 0 1 230px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  line-height: 1.35;
+}
+.zdash__proof {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.zdash__ago {
+  flex: 0 0 90px;
+}
+.zdash__othertext {
+  flex: 1 1 320px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.35;
+}
+.zdash__othertext b {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.zdash__otherbody {
+  font-size: 13px;
+  color: var(--ink-3);
+}
+.zdash__othermeta {
+  flex: 0 0 auto;
+}
+.zdash__clear {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 0 18px;
+  border-top: 1px solid var(--line-soft);
+}
+.zdash__clearicon {
+  display: inline-flex;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--good-tint);
+  color: var(--good);
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.zdash__cleartext {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.35;
+}
+
+/* Tiles */
+.zdash__tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+}
+.zdash__tlabel {
+  font-size: 13px;
+  color: var(--ink-2);
+  font-weight: 500;
+}
+.zdash__tvalue {
+  font-size: 28px;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+.zdash__textra {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-hover);
+}
+
+/* Charts */
+.zdash__charts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr));
+  gap: 16px;
+}
+.zdash__chart {
+  padding: 18px 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.zdash__chart--full {
+  grid-column: 1 / -1;
+}
+.zdash__charthead {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 8px 16px;
+}
+.zdash__chartttl {
+  display: flex;
+  flex-direction: column;
+}
+.zdash__chartttl h2 {
+  margin: 0;
+  font-size: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.zdash__chartnums {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  font-size: 13px;
+}
+.zdash__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.zdash__legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.zdash__sw {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+.zdash__chartfoot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 6px 14px;
+  border-top: 1px solid var(--line-soft);
+  padding-top: 10px;
+  font-size: 13px;
+}
+.zdash__chartnote {
+  border-top: 1px solid var(--line-soft);
+  padding-top: 10px;
+}
+
+.dbc {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  column-gap: 10px;
+  padding-top: 8px;
+}
+.dbc--rev {
+  grid-template-columns: 44px minmax(0, 1fr);
+  padding-top: 22px;
+}
+.dbc__axis {
+  position: relative;
+}
+.dbc__tick {
+  position: absolute;
+  right: 0;
+  transform: translateY(50%);
+  line-height: 1;
+  white-space: nowrap;
+}
+.dbc__plot {
+  position: relative;
+  border-bottom: 1px solid var(--axis);
+}
+.dbc__line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px dashed var(--line);
+}
+.dbc__bars {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+}
+.dbc__bar {
+  flex: 1;
+  min-width: 0;
+  border-radius: 3px 3px 0 0;
+}
+.dbc__slot {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.dbc__stack {
+  position: relative;
+  width: min(100%, 52px);
+  flex-direction: column;
+}
+.dbc__top {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-hover);
+  white-space: nowrap;
+}
+.dbc__vstack {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 3px 3px 0 0;
+}
+.dbc__x {
+  display: flex;
+  height: 22px;
+  margin-top: 6px;
+}
+.dbc__x--months {
+  height: auto;
+}
+.dbc__xcell {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+}
+.dbc__xlabel {
+  position: absolute;
+  top: 0;
+  white-space: nowrap;
+}
+.dbc__month {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.25;
+}
+.dbc__empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+}
+.dbc__empty span {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 14px;
+  color: var(--ink-2);
+  font-size: 13px;
+  text-align: center;
+}
+
+/* Recent activity */
+.zdash__act {
+  padding: 18px 20px 10px;
+  display: flex;
+  flex-direction: column;
+}
+.zdash__acthead {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 6px 12px;
+  padding-bottom: 6px;
+}
+.zdash__acthead h2 {
+  margin: 0;
+  font-size: 16px;
+}
+.zdash__more {
+  font-weight: 600;
+  font-size: 13px;
+}
+.zdash__actrow {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px 4px;
+  border-bottom: 1px solid var(--line-soft);
+  text-decoration: none;
+  color: var(--ink);
+}
+.zdash__actrow:last-child {
+  border-bottom: 0;
+}
+.zdash__actrow:hover {
+  background: var(--hover);
+  color: var(--ink);
+}
+.zdash__acticon {
+  display: inline-flex;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: var(--fill);
+  color: var(--ink-hover);
+  align-items: center;
+  justify-content: center;
+}
+.zdash__acttext {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.35;
+}
+.zdash__actdetail {
+  color: var(--ink-2);
+}
+.zdash__actat {
+  flex: none;
+  white-space: nowrap;
+}
+.zdash__actempty {
+  margin: 0;
+  padding: 14px 0 12px;
+  border-top: 1px solid var(--line-soft);
+  color: var(--ink-3);
+}
+.zdash__skel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+@media (max-width: 760px) {
+  .zdash__title {
+    font-size: 24px;
+  }
+  .zdash__sysmore {
+    margin-left: 0;
+  }
+  .zdash__pay > .btn,
+  .zdash__other > .btn {
+    flex: 1 1 100%;
+  }
+  .zdash__ago {
+    flex: 0 0 auto;
+  }
+  .dbc__xlabel--mid {
+    display: none;
+  }
+}
