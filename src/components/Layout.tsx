@@ -4,6 +4,7 @@ import { getBadges, type AdminMe } from "../lib/api";
 import { BADGES_EVENT } from "../lib/badges";
 import { envHost, switchEnv, useAdminEnv } from "../lib/env";
 import { LOGS_NEED_ATTENTION } from "../content/fixtures/nav";
+import { SAMPLES_ON } from "../lib/samples";
 import { Icon, type IconName } from "./icons";
 import { Modal } from "./Modal";
 
@@ -200,9 +201,15 @@ export function Layout({
     setOpen(false);
   }, [pathname]);
 
-  const groups: NavGroup[] = docs
-    ? GROUPS.map((g) => (g.label === "SYSTEM" ? { ...g, items: [...g.items, { to: "/docs", label: "Documentation", icon: "docs" as const }] } : g))
-    : GROUPS;
+  // SYSTEM: Logs is sample data (dev server only), Documentation is local only; with neither, the group goes.
+  const groups: NavGroup[] = GROUPS.map((g) => {
+    if (g.label !== "SYSTEM") return g;
+    const items = [
+      ...(SAMPLES_ON ? g.items : g.items.filter((i) => i.to !== "/logs")),
+      ...(docs ? [{ to: "/docs", label: "Documentation", icon: "docs" as const }] : []),
+    ];
+    return { ...g, items };
+  }).filter((g) => g.items.length > 0);
 
   return (
     <div className={"zshell" + (prod ? "" : " is-dev")}>
@@ -256,7 +263,7 @@ export function Layout({
                   <span className="zan__glabel">{g.label}</span>
                   {g.items.map((item) => {
                     const count = item.badge ? (badges[item.badge] ?? 0) : 0;
-                    const showDot = item.dot && LOGS_NEED_ATTENTION;
+                    const showDot = item.dot && SAMPLES_ON && LOGS_NEED_ATTENTION;
                     return (
                       <NavLink
                         key={item.to}

@@ -3,9 +3,11 @@ import { blockSubscriber, changePlan, type PlanSummary, type Subscriber } from "
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { useToast } from "../../components/Toast";
 import { PLAN_HISTORY } from "../../content/fixtures/subscribers";
+import { SAMPLES_ON } from "../../lib/samples";
 import { companyName, dLong } from "./model";
 
-const hist = (code: string | undefined) => (code ? (PLAN_HISTORY[code] ?? "—") : "—");
+/** History per plan is sample (no plan-model field yet): dev server only; production builds leave it out. */
+const hist = (code: string | undefined) => (SAMPLES_ON && code && PLAN_HISTORY[code] ? `, ${PLAN_HISTORY[code]} history` : "");
 
 /**
  * Board "Move <company> to <plan>?" — J8-11: says what the change does (an honest downgrade warning) and confirms.
@@ -49,8 +51,8 @@ export function PlanConfirm({
     >
       <p>
         From {row.plan?.name ?? "no plan"}
-        {row.plan ? ` (${row.plan.max_devices} PCs, ${hist(row.plan.code)} history)` : ""} to {plan.name} (
-        {plan.max_devices} PCs, {hist(plan.code)} history). {email ? `${row.email} gets an email.` : "No email is sent."}
+        {row.plan ? ` (${row.plan.max_devices} PCs${hist(row.plan.code)})` : ""} to {plan.name} ({plan.max_devices} PCs
+        {hist(plan.code)}). {email ? `${row.email} gets an email.` : "No email is sent."}
       </p>
       {paidUntil && !downgrade ? <p className="confirm__note num">Paid until stays {dLong(paidUntil)}.</p> : null}
       {downgrade && paidUntil ? (

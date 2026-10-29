@@ -1,5 +1,6 @@
 import type { ReactElement, ReactNode } from "react";
 import { Icon, type IconName } from "./icons";
+import { SAMPLES_ON } from "../lib/samples";
 
 /** Loading placeholder: shimmer rows inside a card (or bare with `bare`). */
 export function LoadingState({ rows = 4, label = "Loading…", bare }: { rows?: number; label?: string; bare?: boolean }): ReactElement {
@@ -69,8 +70,12 @@ export function ErrorState({
   );
 }
 
-/** Marks a screen or block fed from src/content/fixtures (no API yet). */
-export function SampleTag({ what = "Sample data" }: { what?: string }): ReactElement {
+/**
+ * Marks a screen or block fed from src/content/fixtures (no API yet). Production builds (SAMPLES_ON false) hide
+ * the sample blocks themselves; this renders nothing there as a last guard.
+ */
+export function SampleTag({ what = "Sample data" }: { what?: string }): ReactElement | null {
+  if (!SAMPLES_ON) return null;
   return (
     <span className="sample-tag" title="Shown from sample data in src/content/fixtures until the API exists">
       {what}

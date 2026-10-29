@@ -20,6 +20,7 @@ import { useToast } from "../../components/Toast";
 import { Icon } from "../../components/icons";
 import { SampleTag } from "../../components/States";
 import { PLAN_HISTORY, countryOf } from "../../content/fixtures/subscribers";
+import { SAMPLES_ON } from "../../lib/samples";
 import { Drawer } from "./Drawer";
 import { BlockConfirm, PlanConfirm } from "./CustomerConfirm";
 import { PasswordReset } from "./PasswordReset";
@@ -264,7 +265,7 @@ function Overview({ row, onTab, onEmail }: { row: Subscriber; onTab: (t: DrawerT
     ? [
         { k: "Plan", v: row.plan.name },
         { k: "PC limit", v: `${row.plan.max_devices} PCs` },
-        { k: "History", v: PLAN_HISTORY[row.plan.code] ?? "—" },
+        ...(SAMPLES_ON ? [{ k: "History", v: PLAN_HISTORY[row.plan.code] ?? "—" }] : []),
         { k: sub?.is_trial ? "Trial ends" : "Paid until", v: sub?.ends_at ? dLong(sub.ends_at) : "No end date" },
         { k: "Price", v: paid ? `${money(sub.amount_inr, country.abroad ? "USD" : "INR")} before tax` : "Free" },
       ]
@@ -303,7 +304,7 @@ function Overview({ row, onTab, onEmail }: { row: Subscriber; onTab: (t: DrawerT
         <div className="sb-sechead">
           <h3 className="k sb-h">Plan</h3>
           <button type="button" className="btn sm" onClick={() => onTab("actions")}>
-            Extend or change
+            {SAMPLES_ON ? "Extend or change" : "Change plan"}
           </button>
         </div>
         {row.plan ? (
@@ -487,9 +488,11 @@ function History({ row }: { row: Subscriber }): ReactElement {
           ))}
         </ul>
       )}
-      <span className="k sb-sample-line">
-        Refunds from a payment come with the refunds API. <SampleTag what="Not in the API yet" />
-      </span>
+      {SAMPLES_ON ? (
+        <span className="k sb-sample-line">
+          Refunds from a payment come with the refunds API. <SampleTag what="Not in the API yet" />
+        </span>
+      ) : null}
     </section>
   );
 }
@@ -676,60 +679,68 @@ function Actions({
         <div className="sb-arow sb-arow--rule">
           <span className="sb-arow__text">
             {row.email_verified
-              ? "Email confirmed. Resend only if they changed their address or lost the first email."
+              ? SAMPLES_ON
+                ? "Email confirmed. Resend only if they changed their address or lost the first email."
+                : "Email confirmed."
               : "Email not confirmed yet. The link in the confirmation email works for 24 hours."}
           </span>
-          <button type="button" className="btn" disabled title="Comes with the API (auth day)">
-            Resend confirmation email
-          </button>
+          {/* No resend endpoint yet (shown switched off): dev server only. */}
+          {SAMPLES_ON ? (
+            <button type="button" className="btn" disabled title="Comes with the API (auth day)">
+              Resend confirmation email
+            </button>
+          ) : null}
         </div>
       </section>
 
-      <section className="sb-sec" aria-labelledby="a-ext">
-        <div className="sb-sechead">
-          <h3 id="a-ext" className="sb-h2">
-            Extend plan
-          </h3>
-          <SampleTag what="Not in the API yet" />
-        </div>
-        {free ? (
-          <span className="sb-mute">Free forever has no end date. Change the plan first if you want to give paid days.</span>
-        ) : (
-          <div className="sb-col sb-col--tight">
-            <span className="sb-mute">
-              Adds free days to {row.plan?.name}. No invoice is made. Now paid until{" "}
-              <b className="sb-ink">{dLong(row.subscription?.ends_at)}</b>.
-            </span>
-            <div className="sb-ext">
-              <label className="sb-fl" style={{ width: 110 }}>
-                Days
-                <input
-                  className="inp num"
-                  type="number"
-                  min={1}
-                  max={365}
-                  value={extDays}
-                  onChange={(e) => setExtDays(e.target.value)}
-                  disabled
-                />
-              </label>
-              <div className="seg" role="group" aria-label="Quick days">
-                {[7, 14, 30].map((n) => (
-                  <button key={n} type="button" className={String(n) === extDays ? "on" : ""} aria-pressed={String(n) === extDays} disabled>
-                    {n} days
-                  </button>
-                ))}
+      {/* Extend plan has no endpoint yet (shown switched off): dev server only. */}
+      {SAMPLES_ON ? (
+        <section className="sb-sec" aria-labelledby="a-ext">
+          <div className="sb-sechead">
+            <h3 id="a-ext" className="sb-h2">
+              Extend plan
+            </h3>
+            <SampleTag what="Not in the API yet" />
+          </div>
+          {free ? (
+            <span className="sb-mute">Free forever has no end date. Change the plan first if you want to give paid days.</span>
+          ) : (
+            <div className="sb-col sb-col--tight">
+              <span className="sb-mute">
+                Adds free days to {row.plan?.name}. No invoice is made. Now paid until{" "}
+                <b className="sb-ink">{dLong(row.subscription?.ends_at)}</b>.
+              </span>
+              <div className="sb-ext">
+                <label className="sb-fl" style={{ width: 110 }}>
+                  Days
+                  <input
+                    className="inp num"
+                    type="number"
+                    min={1}
+                    max={365}
+                    value={extDays}
+                    onChange={(e) => setExtDays(e.target.value)}
+                    disabled
+                  />
+                </label>
+                <div className="seg" role="group" aria-label="Quick days">
+                  {[7, 14, 30].map((n) => (
+                    <button key={n} type="button" className={String(n) === extDays ? "on" : ""} aria-pressed={String(n) === extDays} disabled>
+                      {n} days
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="sb-row-end">
+                <span className="k">Until the extend endpoint exists, use Change plan or ask a developer.</span>
+                <button type="button" className="btn dark" disabled>
+                  Extend
+                </button>
               </div>
             </div>
-            <div className="sb-row-end">
-              <span className="k">Until the extend endpoint exists, use Change plan or ask a developer.</span>
-              <button type="button" className="btn dark" disabled>
-                Extend
-              </button>
-            </div>
-          </div>
-        )}
-      </section>
+          )}
+        </section>
+      ) : null}
 
       <section className="sb-sec" aria-labelledby="a-plan">
         <h3 id="a-plan" className="sb-h2">
@@ -748,7 +759,7 @@ function Actions({
               {!row.plan ? <option value="">No plan</option> : null}
               {plans.map((p) => (
                 <option key={p.code} value={p.code}>
-                  {p.name} · {p.max_devices} PCs{PLAN_HISTORY[p.code] ? ` · ${PLAN_HISTORY[p.code]}` : ""}
+                  {p.name} · {p.max_devices} PCs{SAMPLES_ON && PLAN_HISTORY[p.code] ? ` · ${PLAN_HISTORY[p.code]}` : ""}
                 </option>
               ))}
             </select>

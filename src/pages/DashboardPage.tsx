@@ -29,6 +29,7 @@ import {
   WEBSITE_LIVE,
 } from "../content/fixtures/dashboard";
 import { LOG_ATTENTION, LOG_EVENTS } from "../content/fixtures/logs";
+import { SAMPLES_ON } from "../lib/samples";
 import "../styles/dashboard.css";
 
 /* ---------- data ---------- */
@@ -254,15 +255,17 @@ export function DashboardPage({ me }: { me: AdminMe }): ReactElement {
           <div className="zdash__charts">
             <SignupsChart signups={metrics?.signups ?? []} />
             <RevenueChart view={view} />
-            <VersionsChart />
+            {SAMPLES_ON ? <VersionsChart /> : null}
           </div>
 
           <section className="card zdash__act" aria-labelledby="act-h">
             <div className="zdash__acthead">
               <h2 id="act-h">Recent activity</h2>
-              <Link to="/logs" className="zdash__more">
-                Full timeline in Logs
-              </Link>
+              {SAMPLES_ON ? (
+                <Link to="/logs" className="zdash__more">
+                  Full timeline in Logs
+                </Link>
+              ) : null}
             </div>
             {view.activity.length ? (
               view.activity.map((a) => (
@@ -417,7 +420,8 @@ function build(m: Metrics, side: Side): View {
       cta: "Open Forms",
     });
   }
-  const backupFail = LOG_EVENTS.find((e) => e.id === LOG_ATTENTION.eventId && e.unresolved);
+  // Sample (Logs, FR-37): dev server only.
+  const backupFail = SAMPLES_ON ? LOG_EVENTS.find((e) => e.id === LOG_ATTENTION.eventId && e.unresolved) : undefined;
   if (backupFail) {
     others.push({
       key: "backup",
@@ -580,8 +584,9 @@ function build(m: Metrics, side: Side): View {
 /* ---------- sections ---------- */
 
 function SystemCard({ dev, apiLive, loading }: { dev: boolean; apiLive: boolean; loading: boolean }): ReactElement {
-  const deploy = LOG_EVENTS.find((e) => e.type === "deploy" && e.env === "Prod" && e.result === "ok");
-  const backup = LOG_EVENTS.find((e) => e.type === "backup" && e.env === "Prod");
+  // Website status, last deploy and last backup are sample (Logs, FR-37): dev server only.
+  const deploy = SAMPLES_ON ? LOG_EVENTS.find((e) => e.type === "deploy" && e.env === "Prod" && e.result === "ok") : undefined;
+  const backup = SAMPLES_ON ? LOG_EVENTS.find((e) => e.type === "backup" && e.env === "Prod") : undefined;
   const backupBad = Boolean(backup?.unresolved);
   const live = (
     <span className="pill good">
@@ -607,10 +612,12 @@ function SystemCard({ dev, apiLive, loading }: { dev: boolean; apiLive: boolean;
           </span>
         )}
       </span>
-      <span className="zdash__sysitem">
-        <b>Website</b>
-        {WEBSITE_LIVE ? live : null}
-      </span>
+      {SAMPLES_ON ? (
+        <span className="zdash__sysitem">
+          <b>Website</b>
+          {WEBSITE_LIVE ? live : null}
+        </span>
+      ) : null}
       <span className="zdash__sysitem">
         <b>Admin</b>
         {live}
@@ -634,10 +641,14 @@ function SystemCard({ dev, apiLive, loading }: { dev: boolean; apiLive: boolean;
           </span>
         </span>
       ) : null}
-      <SampleTag what="Sample" />
-      <Link to="/logs" className="zdash__sysmore">
-        Open logs
-      </Link>
+      {SAMPLES_ON ? (
+        <>
+          <SampleTag what="Sample" />
+          <Link to="/logs" className="zdash__sysmore">
+            Open logs
+          </Link>
+        </>
+      ) : null}
     </section>
   );
 }
@@ -802,7 +813,8 @@ function RevenueChart({ view }: { view: View }): ReactElement {
   const empty = max === 0;
   const last = rev[rev.length - 1];
   return (
-    <section className="card zdash__chart" aria-labelledby="ch-rev">
+    // Full width when the (sample) versions chart beside it is hidden in production builds.
+    <section className={"card zdash__chart" + (SAMPLES_ON ? "" : " zdash__chart--full")} aria-labelledby="ch-rev">
       <div className="zdash__chartttl">
         <h2 id="ch-rev">Revenue per month</h2>
         <span className="k">Verified INR payments · last 6 months</span>

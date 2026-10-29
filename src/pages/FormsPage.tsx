@@ -8,6 +8,14 @@ import { ErrorState, LoadingState, SampleTag } from "../components/States";
 import { Icon } from "../components/icons";
 import { useToast } from "../components/Toast";
 import { contactedIds, setContacted, type BoardStatus } from "../content/fixtures/forms";
+import { SAMPLES_ON } from "../lib/samples";
+
+/**
+ * The board's Contacted stage is kept in this browser only (no API field yet): dev server only. Production
+ * builds show the API's two stages, New and Done.
+ */
+const STAGES: BoardStatus[] = SAMPLES_ON ? ["new", "contacted", "done"] : ["new", "done"];
+const REPLIED: BoardStatus = SAMPLES_ON ? "contacted" : "done";
 import { dayOnly, dayTime, downloadCsv, firstName, isoToday, timeOnly } from "./inbox/format";
 import "../styles/forms.css";
 
@@ -63,7 +71,7 @@ function view(r: FormSubmission, contacted: number[]) {
       : r.subject
         ? [r.subject]
         : [];
-  const status: BoardStatus = r.status === "new" ? "new" : contacted.includes(r.id) ? "contacted" : "done";
+  const status: BoardStatus = r.status === "new" ? "new" : SAMPLES_ON && contacted.includes(r.id) ? "contacted" : "done";
   const extra = Object.entries(d)
     .filter(([k]) => !KNOWN.includes(k))
     .map(([k, v]) => [fieldLabel(k), fieldValue(v)] as const)
@@ -217,7 +225,7 @@ export function FormsPage(): ReactElement {
 
       <div className="zfm-bar">
         <div role="group" aria-label="Status" className="zfm-chips">
-          {(["all", "new", "contacted", "done"] as const).map((c) => (
+          {(["all", ...STAGES] as const).map((c) => (
             <button key={c} type="button" className={"chip" + (st === c ? " on" : "")} aria-pressed={st === c} onClick={() => setSt(c)}>
               {c === "all" ? "All" : STATUS_LABEL[c]}
               <span className="num zfm-chip-n">{inKind.filter((r) => c === "all" || view(r, contacted).status === c).length}</span>
@@ -312,9 +320,11 @@ export function FormsPage(): ReactElement {
                             value={v.status}
                             onChange={(e) => void changeStatus(r, e.target.value as BoardStatus)}
                           >
-                            <option value="new">New</option>
-                            <option value="contacted">Contacted</option>
-                            <option value="done">Done</option>
+                            {STAGES.map((o) => (
+                              <option key={o} value={o}>
+                                {STATUS_LABEL[o]}
+                              </option>
+                            ))}
                           </select>
                         </td>
                       </tr>
@@ -457,8 +467,8 @@ function SubmissionPane({
     const wasNew = v.status === "new";
     setReplyOpen(false);
     setReply("");
-    if (wasNew) await onStatus(sub, "contacted", true);
-    toast(`Reply opened in your email app${wasNew ? ". Marked Contacted." : "."}`);
+    if (wasNew) await onStatus(sub, REPLIED, true);
+    toast(`Reply opened in your email app${wasNew ? `. Marked ${STATUS_LABEL[REPLIED]}.` : "."}`);
   };
 
   const saveNote = async () => {
@@ -504,9 +514,11 @@ function SubmissionPane({
           Status
         </label>
         <select id="dst" className={"zfm-stsel is-" + v.status} value={v.status} onChange={(e) => void onStatus(sub, e.target.value as BoardStatus)}>
-          <option value="new">New</option>
-          <option value="contacted">Contacted</option>
-          <option value="done">Done</option>
+          {STAGES.map((o) => (
+            <option key={o} value={o}>
+              {STATUS_LABEL[o]}
+            </option>
+          ))}
         </select>
         {v.status === "contacted" ? <SampleTag what="Contacted: this browser" /> : null}
         <span className="k">{handledLine}</span>

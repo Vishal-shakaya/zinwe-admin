@@ -34,6 +34,7 @@ import {
   type LocalNote,
 } from "../content/fixtures/support";
 import { age, dayTime, daysAgo, firstName } from "./inbox/format";
+import { SAMPLES_ON } from "../lib/samples";
 import "../styles/support.css";
 
 const STATUS: Record<SupportStatus, { label: string; cls: string }> = {
@@ -216,13 +217,16 @@ export function SupportPage(): ReactElement {
               <b className="num zsp-sum__v">{counts.answered}</b>
               <span className="k">Reopen on their next message</span>
             </div>
-            <div className="card zsp-sum__card">
-              <span className="k zsp-sum__k">
-                First reply, median <SampleTag />
-              </span>
-              <b className="num zsp-sum__v">{FIRST_REPLY_MEDIAN.value}</b>
-              <span className="k">{FIRST_REPLY_MEDIAN.note}</span>
-            </div>
+            {/* Sample figure (no API yet): dev server only. */}
+            {SAMPLES_ON ? (
+              <div className="card zsp-sum__card">
+                <span className="k zsp-sum__k">
+                  First reply, median <SampleTag />
+                </span>
+                <b className="num zsp-sum__v">{FIRST_REPLY_MEDIAN.value}</b>
+                <span className="k">{FIRST_REPLY_MEDIAN.note}</span>
+              </div>
+            ) : null}
             <div className="card zsp-sum__card">
               <span className="k zsp-sum__k">Closed this week</span>
               <b className="num zsp-sum__v">{closedWeek.length}</b>
@@ -540,7 +544,7 @@ function TicketPane({
           <div className="zsp-head__acts">
             <div className="zsp-asg">
               <label className="k zsp-asg__k" htmlFor="asg">
-                Assigned to <SampleTag what="This browser" />
+                Assigned to {SAMPLES_ON ? <SampleTag what="This browser" /> : <span className="k">(this browser)</span>}
               </label>
               <select
                 id="asg"
@@ -688,7 +692,11 @@ function TicketPane({
                 <path d="M8 11V8a4 4 0 0 1 8 0v3" />
               </svg>
             )}
-            {isReply ? `Reply emails the customer at ${t.customer.email}.` : "Not sent. Only the Zinwe team sees notes."}
+            {isReply
+              ? `Reply emails the customer at ${t.customer.email}.`
+              : SAMPLES_ON
+                ? "Not sent. Only the Zinwe team sees notes."
+                : "Not sent. Saved in this browser only; the customer never sees it."}
             {isReply ? null : <SampleTag what="Saved in this browser" />}
           </span>
           <div className="zsp-compose__btns">

@@ -20,7 +20,11 @@ import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Modal } from "../components/Modal";
 import { ErrorState, LoadingState, SampleTag } from "../components/States";
 import { Icon } from "../components/icons";
-import { CUSTOM_PLAN, PLAN_EXTRAS, PREVIEW_VISITOR_PCS } from "../content/fixtures/pricing";
+import { CUSTOM_PLAN, PLAN_EXTRAS, PREVIEW_VISITOR_PCS, type PlanExtra } from "../content/fixtures/pricing";
+import { SAMPLES_ON } from "../lib/samples";
+
+/** History days + card bullet points are sample (no plan-model field yet): dev server only. */
+const extraOf = (code: string): PlanExtra | undefined => (SAMPLES_ON ? PLAN_EXTRAS[code] : undefined);
 import "../styles/pricing.css";
 
 /* ------------------------------------------------------------------ helpers */
@@ -568,7 +572,7 @@ function PlanCard({
   onRecommend: () => void;
   recBusy: boolean;
 }): ReactElement {
-  const extra = PLAN_EXTRAS[p.code];
+  const extra = extraOf(p.code);
   const dirty = FIELD_KEYS.some((k) => shown(d, k) !== shown(saved, k));
   const m = num(d.inrM);
   const y = num(shown(d, "inrY"));
@@ -620,10 +624,12 @@ function PlanCard({
           PC limit
           <input className="inp num" type="number" value={p.max_devices} disabled readOnly />
         </label>
-        <label className="zp-fl" title="Sample value until the plan model serves it (content/fixtures/pricing.ts)">
-          History, days
-          <input className="inp num" type="number" value={extra?.historyDays ?? ""} disabled readOnly />
-        </label>
+        {extra ? (
+          <label className="zp-fl" title="Sample value until the plan model serves it (content/fixtures/pricing.ts)">
+            History, days
+            <input className="inp num" type="number" value={extra.historyDays} disabled readOnly />
+          </label>
+        ) : null}
       </div>
 
       {p.is_free ? (
@@ -823,7 +829,7 @@ function Preview({
             ? `12 × ${rupee(m)} a month${w > 0 ? ` (was ${rupee(w)})` : ""}, paid once a year.`
             : `${rupee(y / 12)} a month, paid once a year. Saves ${Math.round((1 - y / (m * 12)) * 100)}% on 12 months.`;
       }
-      const extra = PLAN_EXTRAS[p.code];
+      const extra = extraOf(p.code);
       return {
         key: p.code,
         name: p.name,
@@ -836,7 +842,7 @@ function Preview({
         sub,
         was,
         custom: false,
-        limit: `Up to ${p.max_devices} PCs · ${hist(extra?.historyDays ?? 0)} of history`,
+        limit: extra ? `Up to ${p.max_devices} PCs · ${hist(extra.historyDays)} of history` : `Up to ${p.max_devices} PCs`,
         cta: p.is_free ? "Start free" : `Choose ${p.name}`,
       };
     }),
@@ -844,7 +850,7 @@ function Preview({
       key: "custom",
       name: CUSTOM_PLAN.name,
       tag: CUSTOM_PLAN.tag,
-      points: CUSTOM_PLAN.points,
+      points: SAMPLES_ON ? CUSTOM_PLAN.points : [],
       fits: false,
       price: "Talk to us",
       per: "",
@@ -852,7 +858,7 @@ function Preview({
       sub: "We quote for the PCs you have.",
       was: "",
       custom: true,
-      limit: "50+ PCs · history to suit you",
+      limit: SAMPLES_ON ? "50+ PCs · history to suit you" : "50+ PCs",
       cta: "Talk to us",
     },
   ];
@@ -925,11 +931,13 @@ function Preview({
               {c.incl ? <span className="num zp-incl">{c.incl}</span> : null}
               {c.sub ? <span className="num zp-psub">{c.sub}</span> : null}
               <span className="zp-limit">{c.limit}</span>
-              <ul className="zp-points">
-                {c.points.map((pt) => (
-                  <li key={pt}>{pt}</li>
-                ))}
-              </ul>
+              {c.points.length ? (
+                <ul className="zp-points">
+                  {c.points.map((pt) => (
+                    <li key={pt}>{pt}</li>
+                  ))}
+                </ul>
+              ) : null}
               <span aria-hidden="true" className={"zp-cta" + (c.fits ? " fits" : "")}>
                 {c.cta}
               </span>
@@ -938,10 +946,12 @@ function Preview({
         </div>
         <span className="zp-paynote">{payNote}</span>
       </figure>
-      <span className="k" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-        <SampleTag what="Sample: history days and card points" /> The bullet points and history lengths come from sample data until the plan
-        model serves them.
-      </span>
+      {SAMPLES_ON ? (
+        <span className="k" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <SampleTag what="Sample: history days and card points" /> The bullet points and history lengths come from sample data until the
+          plan model serves them.
+        </span>
+      ) : null}
     </section>
   );
 }

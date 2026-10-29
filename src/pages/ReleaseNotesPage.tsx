@@ -9,6 +9,7 @@ import {
 } from "../lib/api";
 import { useLoad } from "../lib/useLoad";
 import { BELL_SAMPLE_ALERT, getDisplay, setDisplay, type NoteDisplay } from "../content/fixtures/whatsnew";
+import { SAMPLES_ON } from "../lib/samples";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { PageHeader } from "../components/PageHeader";
 import { EmptyState, ErrorState, LoadingState, SampleTag } from "../components/States";
@@ -350,7 +351,8 @@ export function ReleaseNotesPage(): ReactElement {
                   <th scope="col">Title</th>
                   <th scope="col">Date</th>
                   <th scope="col">Status</th>
-                  <th scope="col">Shown on</th>
+                  {/* Shown on / image / blog banner are not stored by the API yet: dev server only. */}
+                  {SAMPLES_ON ? <th scope="col">Shown on</th> : null}
                   <th scope="col">
                     <span className="sr">Actions</span>
                   </th>
@@ -385,7 +387,7 @@ export function ReleaseNotesPage(): ReactElement {
                           {label}
                         </span>
                       </td>
-                      <td style={{ whiteSpace: "nowrap", color: "var(--ink-2)" }}>{aud}</td>
+                      {SAMPLES_ON ? <td style={{ whiteSpace: "nowrap", color: "var(--ink-2)" }}>{aud}</td> : null}
                       <td style={{ textAlign: "right" }}>
                         <button
                           type="button"
@@ -527,94 +529,98 @@ export function ReleaseNotesPage(): ReactElement {
               ))
             )}
 
-            <div className="wn-field">
-              <span className="lab">
-                Image{" "}
-                <span className="k" style={{ fontWeight: 400 }}>
-                  optional
-                </span>{" "}
-                <SampleTag what="Not saved yet" />
-              </span>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/png,image/jpeg,image/webp"
-                className="sr"
-                tabIndex={-1}
-                aria-hidden="true"
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (!f) return;
-                  if (f.size > 5 * 1024 * 1024) {
-                    toast("That image is over 5 MB.", "bad");
-                    return;
-                  }
-                  patchDisplay({ image: { url: URL.createObjectURL(f), name: f.name, size: f.size } });
-                }}
-              />
-              {display.image ? (
-                <div className="wn-img">
-                  <img src={display.image.url} alt="" className="wn-img__thumb" />
-                  <div className="wn-img__meta">
-                    <span className="mono" style={{ fontSize: 13 }}>
-                      {display.image.name}
-                    </span>
-                    <span className="k">{Math.round(display.image.size / 1024)} KB</span>
-                  </div>
-                  <button
-                    type="button"
-                    className="btn sm"
-                    onClick={() => {
-                      patchDisplay({ image: null });
-                      if (fileRef.current) fileRef.current.value = "";
+            {SAMPLES_ON ? (
+              <>
+                <div className="wn-field">
+                  <span className="lab">
+                    Image{" "}
+                    <span className="k" style={{ fontWeight: 400 }}>
+                      optional
+                    </span>{" "}
+                    <SampleTag what="Not saved yet" />
+                  </span>
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    className="sr"
+                    tabIndex={-1}
+                    aria-hidden="true"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (!f) return;
+                      if (f.size > 5 * 1024 * 1024) {
+                        toast("That image is over 5 MB.", "bad");
+                        return;
+                      }
+                      patchDisplay({ image: { url: URL.createObjectURL(f), name: f.name, size: f.size } });
                     }}
-                  >
-                    Remove
-                  </button>
+                  />
+                  {display.image ? (
+                    <div className="wn-img">
+                      <img src={display.image.url} alt="" className="wn-img__thumb" />
+                      <div className="wn-img__meta">
+                        <span className="mono" style={{ fontSize: 13 }}>
+                          {display.image.name}
+                        </span>
+                        <span className="k">{Math.round(display.image.size / 1024)} KB</span>
+                      </div>
+                      <button
+                        type="button"
+                        className="btn sm"
+                        onClick={() => {
+                          patchDisplay({ image: null });
+                          if (fileRef.current) fileRef.current.value = "";
+                        }}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="wn-drop">
+                      <span className="k">PNG, JPG or WebP, up to 5 MB. A picture of the new screen in the dashboard works best.</span>
+                      <button type="button" className="btn sm" onClick={() => fileRef.current?.click()}>
+                        Add an image
+                      </button>
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <div className="wn-drop">
-                  <span className="k">PNG, JPG or WebP, up to 5 MB. A picture of the new screen in the dashboard works best.</span>
-                  <button type="button" className="btn sm" onClick={() => fileRef.current?.click()}>
-                    Add an image
-                  </button>
+
+                <div className="wn-field" style={{ gap: 8 }}>
+                  <span className="lab">
+                    Shown on <SampleTag what="Not saved yet" />
+                  </span>
+                  <div className="wn-checks">
+                    <label className="ck">
+                      <input type="checkbox" checked={display.help} onChange={() => patchDisplay({ help: !display.help })} />
+                      Dashboard · Help → What's new
+                    </label>
+                    <label className="ck">
+                      <input type="checkbox" checked={display.bell} onChange={() => patchDisplay({ bell: !display.bell })} />
+                      Dashboard · bell
+                    </label>
+                  </div>
                 </div>
-              )}
-            </div>
 
-            <div className="wn-field" style={{ gap: 8 }}>
-              <span className="lab">
-                Shown on <SampleTag what="Not saved yet" />
-              </span>
-              <div className="wn-checks">
-                <label className="ck">
-                  <input type="checkbox" checked={display.help} onChange={() => patchDisplay({ help: !display.help })} />
-                  Dashboard · Help → What's new
+                <label className="sw wn-banner">
+                  <input
+                    type="checkbox"
+                    role="switch"
+                    checked={display.banner}
+                    onChange={() => patchDisplay({ banner: !display.banner })}
+                  />
+                  <span className="tr">
+                    <span />
+                  </span>
+                  <span className="wn-banner__text">
+                    <span className="lab">Show the release banner on the blog</span>
+                    <span className="k" style={{ fontWeight: 400 }}>
+                      A thin strip above the blog: "Zinwe {d.version || "x"} is out. See what's new."
+                    </span>
+                  </span>
                 </label>
-                <label className="ck">
-                  <input type="checkbox" checked={display.bell} onChange={() => patchDisplay({ bell: !display.bell })} />
-                  Dashboard · bell
-                </label>
-              </div>
-            </div>
-
-            <label className="sw wn-banner">
-              <input
-                type="checkbox"
-                role="switch"
-                checked={display.banner}
-                onChange={() => patchDisplay({ banner: !display.banner })}
-              />
-              <span className="tr">
-                <span />
-              </span>
-              <span className="wn-banner__text">
-                <span className="lab">Show the release banner on the blog</span>
-                <span className="k" style={{ fontWeight: 400 }}>
-                  A thin strip above the blog: "Zinwe {d.version || "x"} is out. See what's new."
-                </span>
-              </span>
-            </label>
+              </>
+            ) : null}
 
             <div className="wn-actions">
               {isLive ? (
@@ -726,10 +732,12 @@ export function ReleaseNotesPage(): ReactElement {
                       </span>
                       <span className="wn-bell__link">Read the full note</span>
                     </div>
-                    <div className="wn-bell__row">
-                      <span style={{ fontSize: 13 }}>{BELL_SAMPLE_ALERT.title}</span>
-                      <span style={{ fontSize: 12, color: "#6B6358" }}>{BELL_SAMPLE_ALERT.meta}</span>
-                    </div>
+                    {SAMPLES_ON ? (
+                      <div className="wn-bell__row">
+                        <span style={{ fontSize: 13 }}>{BELL_SAMPLE_ALERT.title}</span>
+                        <span style={{ fontSize: 12, color: "#6B6358" }}>{BELL_SAMPLE_ALERT.meta}</span>
+                      </div>
+                    ) : null}
                   </div>
                 )}
               </div>

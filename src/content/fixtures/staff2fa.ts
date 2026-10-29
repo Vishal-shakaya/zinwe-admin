@@ -4,12 +4,15 @@
  *
  * The code step can be previewed in the local dev server only: open /?twofa=preview (or set this flag).
  * Any 6 digits pass in the preview, except 000000, which shows the board's "wrong code" error.
+ * Production builds (SAMPLES_ON false, src/lib/samples.ts) never show it.
  * Auth day: replace `verifyStaffCode` with the real endpoint, or delete this file if 2FA is dropped.
  */
+import { SAMPLES_ON } from "../../lib/samples";
+
 export const STAFF_2FA_PREVIEW_DEFAULT = false;
 
 export function staff2faPreview(): boolean {
-  if (!import.meta.env.DEV) return false;
+  if (!SAMPLES_ON) return false;
   try {
     return STAFF_2FA_PREVIEW_DEFAULT || new URLSearchParams(window.location.search).get("twofa") === "preview";
   } catch {

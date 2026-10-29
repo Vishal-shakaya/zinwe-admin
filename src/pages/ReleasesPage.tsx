@@ -4,6 +4,7 @@ import { getReleaseReach, getReleases, publishRelease, updateRelease, type Agent
 import { dateTime } from "../lib/format";
 import { useLoad } from "../lib/useLoad";
 import { useAdminEnv } from "../lib/env";
+import { SAMPLES_ON } from "../lib/samples";
 import {
   AGENT_VERSIONS_EXACT,
   AGENT_VERSIONS_IN_USE,
@@ -292,12 +293,15 @@ export function ReleasesPage(): ReactElement {
               />
             </section>
           )}
-          <VersionsCard
-            latest={current?.version ?? null}
-            envLabel={envLabel}
-            onAskMin={(spec) => setConfirm(spec)}
-            onSay={(m) => toast(m)}
-          />
+          {/* Versions in use + minimum version are sample data: dev server only. */}
+          {SAMPLES_ON ? (
+            <VersionsCard
+              latest={current?.version ?? null}
+              envLabel={envLabel}
+              onAskMin={(spec) => setConfirm(spec)}
+              onSay={(m) => toast(m)}
+            />
+          ) : null}
         </div>
       )}
 
@@ -424,8 +428,8 @@ export function ReleasesPage(): ReactElement {
         )}
       </section>
       <p className="k" style={{ margin: 0 }}>
-        Every installer is checked against the signer thumbprint pinned in ZinweSigners before it is offered. Releases and
-        promotions are written to Logs.
+        Every installer is checked against the signer thumbprint pinned in ZinweSigners before it is offered.
+        {SAMPLES_ON ? " Releases and promotions are written to Logs." : ""}
       </p>
 
       {confirm ? <ConfirmBox spec={confirm} onClose={() => setConfirm(null)} /> : null}
@@ -492,17 +496,19 @@ function CurrentCard({
             </button>
           </span>
         </Fact>
-        <Fact k="Signed by">
-          <span className="rl-col">
-            <span>
-              {SIGNER.name} <span className="k mono">· {SIGNER.thumbprint}</span> <SampleTag />
+        {SAMPLES_ON ? (
+          <Fact k="Signed by">
+            <span className="rl-col">
+              <span>
+                {SIGNER.name} <span className="k mono">· {SIGNER.thumbprint}</span> <SampleTag />
+              </span>
+              <span className="pill warn">
+                <Icon name="warn" size={13} strokeWidth={2} />
+                {SIGNER.pending}
+              </span>
             </span>
-            <span className="pill warn">
-              <Icon name="warn" size={13} strokeWidth={2} />
-              {SIGNER.pending}
-            </span>
-          </span>
-        </Fact>
+          </Fact>
+        ) : null}
         <Fact k="PCs updated" center>
           <span className="rl-col" style={{ alignItems: "stretch" }}>
             <span>
@@ -741,7 +747,9 @@ function NewRelease({
       rows: [
         { k: "Installer", v: external ? url.trim() : `${file?.name ?? ""} · ${size}` },
         { k: "SHA-256", v: sha.trim() || "Computed on the server after upload", mono: Boolean(sha.trim()) },
-        { k: "Signed by", v: `${SIGNER.name} · thumbprint ${SIGNER.thumbprint} · self-signed, OV certificate pending` },
+        ...(SAMPLES_ON
+          ? [{ k: "Signed by", v: `${SIGNER.name} · thumbprint ${SIGNER.thumbprint} · self-signed, OV certificate pending` }]
+          : []),
         {
           k: "PCs affected",
           v: reach
@@ -980,20 +988,22 @@ function NewRelease({
                 <span />
               )}
             </div>
-            <div className="rl-check">
-              <span className="k">Signature</span>
-              <span className="rl-col">
-                <span>
-                  Signed by {SIGNER.name}{" "}
-                  <span className="k">
-                    · thumbprint <span className="mono">{SIGNER.thumbprint}</span>, pinned in ZinweSigners
-                  </span>{" "}
-                  <SampleTag />
+            {SAMPLES_ON ? (
+              <div className="rl-check">
+                <span className="k">Signature</span>
+                <span className="rl-col">
+                  <span>
+                    Signed by {SIGNER.name}{" "}
+                    <span className="k">
+                      · thumbprint <span className="mono">{SIGNER.thumbprint}</span>, pinned in ZinweSigners
+                    </span>{" "}
+                    <SampleTag />
+                  </span>
+                  <span className="pill warn">{SIGNER.pending}</span>
                 </span>
-                <span className="pill warn">{SIGNER.pending}</span>
-              </span>
-              <span className="k">PCs check it</span>
-            </div>
+                <span className="k">PCs check it</span>
+              </div>
+            ) : null}
           </div>
 
           <div className="rl-field">

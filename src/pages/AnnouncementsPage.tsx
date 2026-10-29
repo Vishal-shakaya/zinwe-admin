@@ -15,6 +15,7 @@ import {
 } from "../lib/api";
 import { titleCase } from "../lib/format";
 import { useLoad } from "../lib/useLoad";
+import { SAMPLES_ON } from "../lib/samples";
 import {
   BAR_LADDER,
   COUNTRIES,
@@ -454,9 +455,12 @@ export function AnnouncementsPage(): ReactElement {
                   <th scope="col" style={{ width: 160 }}>
                     Dates
                   </th>
-                  <th scope="col" style={{ width: 140 }}>
-                    Views · clicks
-                  </th>
+                  {/* Views · clicks are not counted by the API yet: dev server only. */}
+                  {SAMPLES_ON ? (
+                    <th scope="col" style={{ width: 140 }}>
+                      Views · clicks
+                    </th>
+                  ) : null}
                   <th scope="col" style={{ width: 200 }}>
                     <span className="sr">Actions</span>
                   </th>
@@ -507,12 +511,14 @@ export function AnnouncementsPage(): ReactElement {
                           <span className="k num">{a.ends_at ? `until ${fmt(a.ends_at)}` : "no end date"}</span>
                         </div>
                       </td>
-                      <td>
-                        <div className="an-col">
-                          <span className="num">{a.status === "scheduled" ? "Not shown yet" : "Not counted yet"}</span>
-                          <span className="k">{a.status === "scheduled" ? "" : "Counts come with the API"}</span>
-                        </div>
-                      </td>
+                      {SAMPLES_ON ? (
+                        <td>
+                          <div className="an-col">
+                            <span className="num">{a.status === "scheduled" ? "Not shown yet" : "Not counted yet"}</span>
+                            <span className="k">{a.status === "scheduled" ? "" : "Counts come with the API"}</span>
+                          </div>
+                        </td>
+                      ) : null}
                       <td>
                         <div className="an-acts">
                           {a.status === "live" || a.status === "scheduled" ? (
@@ -693,9 +699,11 @@ export function AnnouncementsPage(): ReactElement {
                   >
                     By plan
                   </Opt>
-                  <Opt name="aud" on={false} disabled onPick={() => undefined}>
-                    By country <SampleTag what="Soon" />
-                  </Opt>
+                  {SAMPLES_ON ? (
+                    <Opt name="aud" on={false} disabled onPick={() => undefined}>
+                      By country <SampleTag what="Soon" />
+                    </Opt>
+                  ) : null}
                   <Opt name="aud" on={form.audience === "owners"} onPick={() => set("audience", "owners")}>
                     Chosen customers
                   </Opt>
@@ -751,7 +759,7 @@ export function AnnouncementsPage(): ReactElement {
                     {form.placement === "both" ? " (and every website visitor)" : ""}
                   </span>
                 </span>
-                <span className="sr">{COUNTRIES.length} countries available soon</span>
+                {SAMPLES_ON ? <span className="sr">{COUNTRIES.length} countries available soon</span> : null}
               </>
             ) : (
               <span className="an-reach">Every visitor of zinwe.io sees it. Dashboard audiences apply to dashboard bars only.</span>
@@ -884,18 +892,21 @@ export function AnnouncementsPage(): ReactElement {
                 </span>
               </span>
             </label>
-            <label className="sw" title="Email sending for announcements isn’t available yet">
-              <input type="checkbox" role="switch" checked={false} disabled={!EMAIL_ANNOUNCEMENTS_AVAILABLE} onChange={() => undefined} />
-              <span className="tr" aria-hidden="true">
-                <span />
-              </span>
-              <span className="an-sw__text">
-                <span>
-                  Also email it <SampleTag what="Soon" />
+            {/* No email sending for announcements yet (shown switched off): dev server only. */}
+            {SAMPLES_ON ? (
+              <label className="sw" title="Email sending for announcements isn’t available yet">
+                <input type="checkbox" role="switch" checked={false} disabled={!EMAIL_ANNOUNCEMENTS_AVAILABLE} onChange={() => undefined} />
+                <span className="tr" aria-hidden="true">
+                  <span />
                 </span>
-                <span className="k">Only shown in the dashboard.</span>
-              </span>
-            </label>
+                <span className="an-sw__text">
+                  <span>
+                    Also email it <SampleTag what="Soon" />
+                  </span>
+                  <span className="k">Only shown in the dashboard.</span>
+                </span>
+              </label>
+            ) : null}
             <div className="an-prio">
               <label className="lab" htmlFor="a-prio">
                 Priority

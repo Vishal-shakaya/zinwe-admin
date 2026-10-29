@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { ApiError, getFeedback, getMe, sendCustomerEmail, type FeedbackRow } from "../lib/api";
 import { pageName } from "../lib/pages";
 import { useLoad } from "../lib/useLoad";
+import { SAMPLES_ON } from "../lib/samples";
 import { PageHeader } from "../components/PageHeader";
 import { ErrorState, LoadingState, SampleTag } from "../components/States";
 import { Icon } from "../components/icons";
@@ -236,7 +237,8 @@ export function FeedbackPage(): ReactElement {
       >
         {data ? (
           <span className="k">
-            {unreadAll ? `${unreadAll} unread` : "All read"} <SampleTag what="Read state: this browser" />
+            {unreadAll ? `${unreadAll} unread` : "All read"}{" "}
+            {SAMPLES_ON ? <SampleTag what="Read state: this browser" /> : "(this browser)"}
           </span>
         ) : null}
         <button type="button" className="btn" onClick={exportCsv} disabled={!data}>
