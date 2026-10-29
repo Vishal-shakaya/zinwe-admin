@@ -27,7 +27,7 @@ import {
   AGENT_VERSIONS_NOTE,
   WEBSITE_LIVE,
 } from "../content/fixtures/dashboard";
-import { LOG_ATTENTION, LOG_EVENTS } from "../content/fixtures/logs";
+import { getLogsStatus, type LogsStatus } from "../lib/logsApi";
 import { useAdminEnv } from "../lib/env";
 import { SAMPLES_ON } from "../lib/samples";
 import "../styles/dashboard.css";
@@ -41,6 +41,8 @@ interface Side {
   forms: FormSubmission[] | null;
   releases: AgentRelease[] | null;
   announcements: Announcement[] | null;
+  /** Logs (FR-37): last deploy / backup and the failures nobody has handled. */
+  logs: LogsStatus | null;
 }
 
 const EMPTY_SIDE: Side = {
@@ -50,6 +52,7 @@ const EMPTY_SIDE: Side = {
   forms: null,
   releases: null,
   announcements: null,
+  logs: null,
 };
 
 const settled = <T,>(r: PromiseSettledResult<T>): T | null => (r.status === "fulfilled" ? r.value : null);
@@ -165,7 +168,7 @@ export function DashboardPage({ me }: { me: AdminMe }): ReactElement {
 
   const load = useCallback(async () => {
     setRefreshing(true);
-    const [m, subs, subscriptions, support, forms, releases, announcements] = await Promise.allSettled([
+    const [m, subs, subscriptions, support, forms, releases, announcements, logs] = await Promise.allSettled([
       getMetrics(),
       getSubscribers(),
       getSubscriptions(),
@@ -173,6 +176,7 @@ export function DashboardPage({ me }: { me: AdminMe }): ReactElement {
       getForms({ status: "new" }),
       getReleases(),
       getAnnouncements(),
+      getLogsStatus(),
     ]);
     if (m.status === "fulfilled") {
       setMetrics(m.value);
@@ -187,6 +191,7 @@ export function DashboardPage({ me }: { me: AdminMe }): ReactElement {
       forms: settled(forms)?.rows ?? null,
       releases: settled(releases),
       announcements: settled(announcements),
+      logs: settled(logs),
     });
     setUpdated(hhmm(new Date()));
     setRefreshing(false);
@@ -226,7 +231,7 @@ export function DashboardPage({ me }: { me: AdminMe }): ReactElement {
         </div>
       </header>
 
-      <SystemCard dev={dev} apiLive={!error && Boolean(metrics)} loading={!metrics && !error} />
+      <SystemCard dev={dev} apiLive={!error && Boolean(metrics)} loading={!metrics && !error} logs={side.logs} />
 
       {error && !metrics ? (
         <ErrorState title="The dashboard couldn’t load" message={error} onRetry={() => setNonce((n) => n + 1)} />
@@ -415,19 +420,32 @@ function build(m: Metrics, side: Side): View {
       cta: "Open Forms",
     });
   }
-  // Sample (Logs, FR-37): dev server only.
-  const backupFail = SAMPLES_ON ? LOG_EVENTS.find((e) => e.id === LOG_ATTENTION.eventId && e.unresolved) : undefined;
-  if (backupFail) {
+  // Logs (FR-37): failed deploys / backups nobody has handled yet.
+  const failed = side.logs?.attention ?? [];
+  const failedCount = side.logs?.unresolved ?? 0;
+  if (failed.length) {
+    const kinds = new Set(failed.map((e) => e.type));
+    const one = failedCount === 1 ? failed[0] : null;
     others.push({
-      key: "backup",
+      key: "logs",
       icon: "warn",
       tone: "bad",
-      title: "Off-site backup failed",
-      body: "28 Oct, 03:00. The local copy is fine (412 MB); the copy to Backblaze B2 timed out after 3 tries.",
-      meta: "11 h ago",
+      title: one
+        ? one.type === "backup"
+          ? /off-site copy failed/i.test(one.what)
+            ? "Off-site backup failed"
+            : "Backup failed"
+          : one.type === "deploy"
+            ? `${one.label} failed`
+            : "A server job failed"
+        : `${failedCount} server jobs failed${kinds.size === 1 && kinds.has("backup") ? " (backups)" : ""}`,
+      body: failed
+        .slice(0, 3)
+        .map((e) => `${dayMonth(new Date(e.at))}, ${hhmm(new Date(e.at))}: ${e.what}`)
+        .join(" · "),
+      meta: `${failedCount === 1 ? "" : "Newest "}${ageLabel(failed[0].at)} ago`,
       to: "/logs",
       cta: "Open Logs",
-      sample: true,
     });
   }
 
@@ -441,7 +459,7 @@ function build(m: Metrics, side: Side): View {
     payments.length ? `${payments.length} payment${payments.length === 1 ? "" : "s"}` : "",
     waiting.length ? `${waiting.length} support` : "",
     forms.length ? `${forms.length} form${forms.length === 1 ? "" : "s"}` : "",
-    backupFail ? "1 backup" : "",
+    failedCount ? `${failedCount} failed job${failedCount === 1 ? "" : "s"}` : "",
   ].filter(Boolean);
   const needsSub = parts.length ? parts.join(" · ") + (oldestIso ? ` · oldest waiting ${ageLabel(oldestIso)}` : "") : "All clear";
 
@@ -578,11 +596,22 @@ function build(m: Metrics, side: Side): View {
 
 /* ---------- sections ---------- */
 
-function SystemCard({ dev, apiLive, loading }: { dev: boolean; apiLive: boolean; loading: boolean }): ReactElement {
-  // Website status, last deploy and last backup are sample (Logs, FR-37): dev server only.
-  const deploy = SAMPLES_ON ? LOG_EVENTS.find((e) => e.type === "deploy" && e.env === "Prod" && e.result === "ok") : undefined;
-  const backup = SAMPLES_ON ? LOG_EVENTS.find((e) => e.type === "backup" && e.env === "Prod") : undefined;
-  const backupBad = Boolean(backup?.unresolved);
+function SystemCard({
+  dev,
+  apiLive,
+  loading,
+  logs,
+}: {
+  dev: boolean;
+  apiLive: boolean;
+  loading: boolean;
+  logs: LogsStatus | null;
+}): ReactElement {
+  // Last deploy and last backup: this environment's Logs (FR-37). The Website pill is still sample (dev server only).
+  const deploy = logs?.last_deploy ?? null;
+  const backup = logs?.last_backup ?? null;
+  const backupBad = backup?.result === "fail";
+  const offsite = backup ? /off-site copy/i.test(backup.what) && !/not set up/i.test(backup.what) : false;
   const live = (
     <span className="pill good">
       <span className="dot" />
@@ -611,6 +640,7 @@ function SystemCard({ dev, apiLive, loading }: { dev: boolean; apiLive: boolean;
         <span className="zdash__sysitem">
           <b>Website</b>
           {WEBSITE_LIVE ? live : null}
+          <SampleTag what="Sample" />
         </span>
       ) : null}
       <span className="zdash__sysitem">
@@ -621,29 +651,36 @@ function SystemCard({ dev, apiLive, loading }: { dev: boolean; apiLive: boolean;
         <span className="zdash__sysitem">
           <span className="k">Last deploy</span>
           <span className="mono" style={{ fontSize: 12 }}>
-            {deploy.what.match(/prod-\d{8}-\d{4}/)?.[0] ?? deploy.label}
+            {deploy.what.match(/\d{8}-\d{4,6}/)?.[0] ?? deploy.label}
           </span>
-          <span className="k">{deploy.at.slice(11, 16)}</span>
+          <span className="k">{whenLabel(deploy.at)}</span>
+          {deploy.result !== "ok" ? (
+            <span className={"pill " + (deploy.result === "rolled" ? "warn" : "bad")}>
+              <span className="dot" />
+              {deploy.result === "rolled" ? "Rolled back" : "Failed"}
+            </span>
+          ) : null}
         </span>
       ) : null}
       {backup ? (
         <span className="zdash__sysitem">
           <span className="k">Last backup</span>
-          <span>{backup.at.slice(11, 16)}</span>
+          <span>{whenLabel(backup.at)}</span>
           <span className={"pill " + (backupBad ? "bad" : "good")}>
             <span className="dot" />
-            {backupBad ? "Off-site copy failed" : "Off-site copy OK"}
+            {backupBad
+              ? /off-site copy failed/i.test(backup.what)
+                ? "Off-site copy failed"
+                : "Failed"
+              : offsite
+                ? "Off-site copy OK"
+                : "OK"}
           </span>
         </span>
       ) : null}
-      {SAMPLES_ON ? (
-        <>
-          <SampleTag what="Sample" />
-          <Link to="/logs" className="zdash__sysmore">
-            Open logs
-          </Link>
-        </>
-      ) : null}
+      <Link to="/logs" className="zdash__sysmore">
+        Open logs
+      </Link>
     </section>
   );
 }

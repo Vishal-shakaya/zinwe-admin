@@ -22,7 +22,6 @@ import { BlogSubscribersPage } from "./pages/BlogSubscribersPage";
 import { BlogSeriesPage } from "./pages/BlogSeriesPage";
 import { BlogGuidesPage } from "./pages/BlogGuidesPage";
 import { LogsPage } from "./pages/LogsPage";
-import { SAMPLES_ON } from "./lib/samples";
 
 // Documentation tab: local dev only. `import.meta.env.DEV` is false in `vite build`, so production bundles drop
 // this import (and the docs are served only by the dev server, see vite.config.ts).
@@ -90,8 +89,8 @@ export function App(): ReactElement {
             <Route path="/blog/series" element={<BlogSeriesPage />} />
             <Route path="/blog/guides" element={<BlogGuidesPage />} />
             <Route path="/blog/:id" element={<BlogEditorPage />} />
-            {/* Logs (FR-37) is sample data only: dev server only; production builds send /logs home. */}
-            <Route path="/logs" element={SAMPLES_ON ? <LogsPage /> : <Navigate to="/" replace />} />
+            {/* Logs (FR-37): real data from /api/admin/logs/, in every build. */}
+            <Route path="/logs" element={<LogsPage />} />
             {DocsPage ? (
               <Route
                 path="/docs/:slug?"

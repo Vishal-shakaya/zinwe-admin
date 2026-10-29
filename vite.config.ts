@@ -150,12 +150,16 @@ function zinweDocs(): Plugin {
 
 // The internal admin app. Runs on 5174 (the owner dashboard uses 5173) and
 // proxies /api to the Django backend so the token-authed calls are same-origin.
+// ZINWE_API_TARGET points it at another backend (a worktree's own API, e.g. http://127.0.0.1:8020);
+// `vite preview` uses the same proxy.
+const API_TARGET = process.env.ZINWE_API_TARGET || "http://127.0.0.1:8000";
+
 export default defineConfig({
   plugins: [react(), zinweDocs()],
   server: {
     port: 5174,
     proxy: {
-      "/api": { target: "http://127.0.0.1:8000", changeOrigin: true },
+      "/api": { target: API_TARGET, changeOrigin: true },
     },
   },
 });

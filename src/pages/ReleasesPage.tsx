@@ -429,7 +429,7 @@ export function ReleasesPage(): ReactElement {
       </section>
       <p className="k" style={{ margin: 0 }}>
         Every installer is checked against the signer thumbprint pinned in ZinweSigners before it is offered.
-        {SAMPLES_ON ? " Releases and promotions are written to Logs." : ""}
+        {" "}Publishing and every change to a release are written to Logs.
       </p>
 
       {confirm ? <ConfirmBox spec={confirm} onClose={() => setConfirm(null)} /> : null}

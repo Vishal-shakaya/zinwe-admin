@@ -3,12 +3,10 @@ import { Link, NavLink, useLocation } from "react-router-dom";
 import { getBadges, type AdminMe } from "../lib/api";
 import { BADGES_EVENT } from "../lib/badges";
 import { useAdminEnv } from "../lib/env";
-import { LOGS_NEED_ATTENTION } from "../content/fixtures/nav";
-import { SAMPLES_ON } from "../lib/samples";
 import { BrandLogo, DevPill } from "./BrandLogo";
 import { Icon, type IconName } from "./icons";
 
-type BadgeKey = "payments_waiting" | "support_waiting" | "forms_new" | "feedback_unread";
+type BadgeKey = "payments_waiting" | "support_waiting" | "forms_new" | "feedback_unread" | "logs_attention";
 
 interface NavItem {
   to: string;
@@ -20,8 +18,8 @@ interface NavItem {
   badgeLabel?: string;
   /** Yellow badge (money waiting) instead of the light one. */
   warn?: boolean;
-  /** A red "needs attention" dot instead of a count. */
-  dot?: boolean;
+  /** A red "needs attention" dot instead of a count, lit while this badge is above 0. */
+  dot?: BadgeKey;
 }
 
 interface NavGroup {
@@ -56,7 +54,8 @@ const GROUPS: NavGroup[] = [
       { to: "/blog", label: "Blog", icon: "blog" },
     ],
   },
-  { label: "SYSTEM", items: [{ to: "/logs", label: "Logs", icon: "logs", dot: true }] },
+  // Logs (FR-37): the dot = failed jobs nobody has handled (badges.logs_attention).
+  { label: "SYSTEM", items: [{ to: "/logs", label: "Logs", icon: "logs", dot: "logs_attention" }] },
 ];
 
 const BADGE_REFRESH_MS = 60_000;
@@ -150,15 +149,11 @@ export function Layout({
     setOpen(false);
   }, [pathname]);
 
-  // SYSTEM: Logs is sample data (dev server only), Documentation is local only; with neither, the group goes.
+  // SYSTEM: Logs in every build; Documentation only locally.
   const groups: NavGroup[] = GROUPS.map((g) => {
     if (g.label !== "SYSTEM") return g;
-    const items = [
-      ...(SAMPLES_ON ? g.items : g.items.filter((i) => i.to !== "/logs")),
-      ...(docs ? [{ to: "/docs", label: "Documentation", icon: "docs" as const }] : []),
-    ];
-    return { ...g, items };
-  }).filter((g) => g.items.length > 0);
+    return { ...g, items: [...g.items, ...(docs ? [{ to: "/docs", label: "Documentation", icon: "docs" as const }] : [])] };
+  });
 
   return (
     <div className="zshell">
@@ -189,7 +184,7 @@ export function Layout({
                   <span className="zan__glabel">{g.label}</span>
                   {g.items.map((item) => {
                     const count = item.badge ? (badges[item.badge] ?? 0) : 0;
-                    const showDot = item.dot && SAMPLES_ON && LOGS_NEED_ATTENTION;
+                    const showDot = item.dot ? (badges[item.dot] ?? 0) > 0 : false;
                     return (
                       <NavLink
                         key={item.to}

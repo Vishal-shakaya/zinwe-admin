@@ -4,8 +4,8 @@
  *
  *  - AGENT_VERSIONS_BY_DAY: PCs online per day by Windows agent version, last 14 days (AdminDashboard board).
  *    Needs a daily heartbeat roll-up per version (e.g. `GET /api/admin/agents/versions/?days=14`).
- *  - The System card's Website status, last deploy and last backup come from the Logs sample
- *    (src/content/fixtures/logs.ts, FR-37); the API and Admin "Live" pills are real (this page loaded).
+ *  - WEBSITE_LIVE: the System card's Website pill (needs an uptime check). The API and Admin "Live" pills are real
+ *    (this page loaded); last deploy and last backup come from the Logs API (FR-37, /api/admin/logs/status/).
  *
  * API day: add the endpoints above and delete this file.
  */

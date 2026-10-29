@@ -12,7 +12,8 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, init: RequestInit & { auth?: boolean } = {}): Promise<T> {
+/** One call to the admin API: JSON in/out, the session token, ApiError on failure (shared by the lib/*Api modules). */
+export async function request<T>(path: string, init: RequestInit & { auth?: boolean } = {}): Promise<T> {
   const { auth = true, headers, ...rest } = init;
   const h = new Headers(headers);
   // JSON by default; a FormData body (file upload) gets its multipart boundary from the browser.
@@ -331,7 +332,9 @@ export const getFeedback = () =>
 
 /** What needs the team now, for the sidebar badges. */
 export const getBadges = () =>
-  request<{ payments_waiting: number; support_waiting: number; forms_new?: number }>("/api/admin/badges/");
+  request<{ payments_waiting: number; support_waiting: number; forms_new?: number; logs_attention?: number }>(
+    "/api/admin/badges/",
+  );
 
 /** Whether GST is charged right now (the seller GSTIN is set). */
 export const getBillingSettings = () => request<{ gst_charged: boolean; seller_gstin: string }>("/api/admin/billing-settings/");
