@@ -1,9 +1,10 @@
 import { useState, type FormEvent, type ReactElement } from "react";
 import { ApiError, getMe, login } from "../lib/api";
 import { clearToken, setToken } from "../lib/session";
-import { envHost, useAdminEnv } from "../lib/env";
+import { useAdminEnv } from "../lib/env";
 import { staff2faPreview, verifyStaffCode } from "../content/fixtures/staff2fa";
 import { Icon } from "../components/icons";
+import { BrandLogo, DevPill } from "../components/BrandLogo";
 import "../styles/login.css";
 
 type Step = "creds" | "code" | "done";
@@ -120,19 +121,7 @@ export function LoginPage({ onSignedIn }: { onSignedIn: () => void }): ReactElem
     <div className="zlogin">
       <div className="zlogin__col">
         <div className="zlogin__top">
-          <div className="zlogin__brand">
-            <span aria-hidden="true" className="ztile">
-              Z
-            </span>
-            <span className="zlogin__brandtext">
-              <b>Zinwe staff</b>
-              <span className="mono zlogin__host">{envHost()}</span>
-            </span>
-          </div>
-          <span className={"env-pill" + (dev ? " is-dev" : "")}>
-            <span aria-hidden="true" className="dot" />
-            {dev ? "Dev · test data" : "Production"}
-          </span>
+          <BrandLogo height={28} extra={dev ? <DevPill /> : null} />
         </div>
 
         <section className="zlogin__card">

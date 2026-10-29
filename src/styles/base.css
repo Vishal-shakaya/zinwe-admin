@@ -48,16 +48,16 @@
   --info-tint: #e6edf5;
   --sel: #eef1f5;
 
-  /* Menu (dark) */
-  --nav: #16181b;
-  --nav-2: #24282d;
-  --nav-3: #2c3137;
-  --nav-line: #3a3f46;
-  --nav-text: #c4c7cc;
-  --nav-mute: #a9adb3;
-  --nav-label: #8c9198;
-  --nav-prod: #f2c76e;
-  --nav-dev: #ff9a52;
+  /* Menu (light, v1.3.1): white surface, hairline right edge, dark text */
+  --nav: #fff;
+  --nav-line: var(--line);
+  --nav-text: var(--ink-2);
+  --nav-label: var(--mute);
+  --nav-hover: var(--hover);
+  --nav-active: var(--sel);
+  --nav-active-bar: var(--link);
+  /* Muted text on a dark selected chip/tab (counts inside .chip.on) */
+  --on-dark-mute: #c4c7cc;
 
   --radius: 12px;
   --radius-md: 10px;
@@ -781,11 +781,15 @@ select.inp {
   font-size: 16px;
 }
 
-/* ---------- Dark menu (AdminNav) ---------- */
+/* ---------- Menu (AdminNav, light since v1.3.1) ---------- */
 
+.zshell__nav {
+  background: var(--nav);
+  border-right: 1px solid var(--nav-line);
+}
 .zan {
   font-family: var(--font);
-  color: #fff;
+  color: var(--ink);
   background: var(--nav);
   min-height: 100%;
   height: 100%;
@@ -797,7 +801,7 @@ select.inp {
   line-height: 1.4;
 }
 .zan :focus-visible {
-  outline: 2px solid #fff;
+  outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
 .zan__sticky {
@@ -820,129 +824,37 @@ select.inp {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  min-height: 40px;
 }
 .zan__brand {
   display: flex;
   align-items: center;
-  gap: 10px;
   text-decoration: none;
-  color: #fff;
-  padding: 2px 4px;
+  color: var(--ink);
+  padding: 4px 6px;
+  border-radius: 8px;
   min-width: 0;
 }
 .zan__brand:hover {
-  color: #fff;
-}
-.ztile {
-  display: inline-flex;
-  flex: none;
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: var(--brand);
+  background: var(--nav-hover);
   color: var(--ink);
-  font-weight: 800;
-  font-size: 17px;
-  align-items: center;
-  justify-content: center;
-}
-.zan__brandtext {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.2;
-  min-width: 0;
-}
-.zan__brandtext b {
-  font-size: 15px;
-}
-.zan__host {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--nav-mute);
 }
 .zan__menu-btn {
   display: none;
   min-height: 40px;
   padding: 0 12px;
   border-radius: 8px;
-  border: 1px solid var(--nav-line);
-  background: transparent;
-  color: #e3e5e8;
+  border: 1px solid var(--line-input);
+  background: var(--surface);
+  color: var(--ink);
   font-weight: 600;
   font-size: 13px;
   align-items: center;
   gap: 8px;
 }
 .zan__menu-btn:hover {
-  border-color: #fff;
-  color: #fff;
-}
-.zan__env {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 8px 8px 8px 10px;
-  border-radius: 10px;
-  background: var(--nav-2);
-  border: 1px solid var(--nav-line);
-}
-.zan__env.is-dev {
-  border-color: var(--brand);
-}
-.zan__envrow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-.zan__envtext {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.25;
-  min-width: 0;
-}
-.zan__envlabel {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  color: var(--nav-mute);
-  white-space: nowrap;
-}
-.zan__envname {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 14px;
-  color: var(--nav-prod);
-}
-.is-dev .zan__envname {
-  color: var(--nav-dev);
-}
-.zan__envnote {
-  font-size: 12px;
-  padding: 0 2px;
-  color: var(--nav-prod);
-}
-.is-dev .zan__envnote {
-  color: #e3e5e8;
-}
-.zan-sw {
-  flex: none;
-  min-height: 34px;
-  padding: 0 10px;
-  border-radius: 8px;
-  border: 1px solid #4a4f57;
-  background: transparent;
-  color: #e3e5e8;
-  font: inherit;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
-}
-.zan-sw:hover {
-  border-color: #fff;
-  color: #fff;
+  background: var(--nav-hover);
+  border-color: var(--mute-2);
 }
 .zan__groups {
   display: flex;
@@ -972,19 +884,27 @@ select.inp {
   color: var(--nav-text);
   font-weight: 500;
 }
+.zan-link svg {
+  flex: none;
+  color: var(--mute);
+}
 .zan-link:hover {
-  background: var(--nav-2);
-  color: #fff;
+  background: var(--nav-hover);
+  color: var(--ink);
+}
+.zan-link:hover svg {
+  color: var(--ink-2);
 }
 .zan-link.is-active,
 .zan-link[aria-current="page"] {
-  background: var(--nav-3);
-  color: #fff;
+  background: var(--nav-active);
+  color: var(--ink);
   font-weight: 600;
-  box-shadow: inset 2px 0 0 #fff;
+  box-shadow: inset 3px 0 0 var(--nav-active-bar);
 }
-.zan-link svg {
-  flex: none;
+.zan-link.is-active svg,
+.zan-link[aria-current="page"] svg {
+  color: var(--link);
 }
 .zan-link__label {
   flex: 1;
@@ -1001,8 +921,8 @@ select.inp {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: #e3e5e8;
-  color: var(--ink);
+  background: var(--ink);
+  color: #fff;
 }
 .zan__badge.warn {
   background: var(--warn-badge);
@@ -1012,12 +932,12 @@ select.inp {
   width: 9px;
   height: 9px;
   border-radius: 50%;
-  background: #f0614a;
-  box-shadow: 0 0 0 3px rgba(240, 97, 74, 0.22);
+  background: #d8442b;
+  box-shadow: 0 0 0 3px rgba(216, 68, 43, 0.18);
 }
 .zan__foot {
   margin-top: auto;
-  border-top: 1px solid var(--nav-3);
+  border-top: 1px solid var(--nav-line);
   padding: 14px 4px 0;
   display: flex;
   flex-direction: column;
@@ -1034,8 +954,8 @@ select.inp {
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  background: var(--nav-3);
-  color: #fff;
+  background: var(--fill);
+  color: var(--ink);
   font-size: 12px;
   font-weight: 700;
   align-items: center;
@@ -1062,12 +982,12 @@ select.inp {
   font-weight: 600;
   padding: 1px 7px;
   border-radius: 999px;
-  background: var(--nav-3);
-  color: #e3e5e8;
+  background: var(--fill);
+  color: var(--ink-2);
 }
 .zan__email {
   font-size: 12px;
-  color: var(--nav-mute);
+  color: var(--mute);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1080,62 +1000,62 @@ select.inp {
   min-height: 40px;
   padding: 0 12px;
   border-radius: 8px;
-  border: 1px solid var(--nav-line);
-  background: transparent;
-  color: var(--nav-text);
+  border: 1px solid var(--line-input);
+  background: var(--surface);
+  color: var(--ink-2);
+  font: inherit;
   font-weight: 600;
   font-size: 13px;
   text-decoration: none;
+  cursor: pointer;
 }
 .zan-out:hover {
-  border-color: #fff;
-  color: #fff;
+  background: var(--nav-hover);
+  border-color: var(--mute-2);
+  color: var(--ink);
 }
 
-/* DEV frame: the whole screen gets an orange border while the session is on Dev. */
-.zdev-frame {
-  position: fixed;
-  inset: 0;
-  border: 5px solid var(--brand);
-  pointer-events: none;
-  z-index: 900;
-}
-.zdev-note {
-  position: fixed;
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 901;
-  max-width: calc(100% - 24px);
-  background: var(--brand);
-  color: #141210;
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1.2;
-  padding: 6px 14px 7px;
-  border-radius: 0 0 9px 9px;
-  pointer-events: none;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* Env pill (dashboard header, login) */
-.env-pill {
+/* Official wordmark + "Staff" label (BrandLogo: menu, phone bar, sign-in) */
+.brand {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 3px 10px;
-  border-radius: 999px;
-  font-size: 12px;
+  gap: 8px;
+  min-width: 0;
+}
+.brand__pic {
+  display: inline-flex;
+  flex: none;
+}
+.brand__logo {
+  display: block;
+  height: var(--brand-h, 24px);
+  width: auto;
+}
+.brand__tag {
+  font-size: 11px;
   font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  padding: 3px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--fill);
+  color: var(--ink-2);
   white-space: nowrap;
+}
+
+/* Dev hint: dev.admin.zinwe.io and local hosts only, never on production. Not interactive. */
+.env-dev {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  padding: 3px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--warn-line);
   background: var(--warn-tint);
   color: var(--warn);
-}
-.env-pill.is-dev {
-  background: var(--brand);
-  color: #141210;
+  white-space: nowrap;
 }
 
 /* ---------- Dialogs (native <dialog>) ---------- */
@@ -1430,9 +1350,9 @@ select.inp {
   .zmain {
     flex: 1 1 auto;
   }
-  /* The DEV tab hangs from the top edge: keep the brand clear of it. */
-  .zshell.is-dev .zan {
-    padding-top: 34px;
+  .zshell__nav {
+    border-right: 0;
+    border-bottom: 1px solid var(--nav-line);
   }
   .zan {
     min-height: 0;
@@ -1450,9 +1370,6 @@ select.inp {
   }
   .zan:not(.is-open) .zan__groups,
   .zan:not(.is-open) .zan__foot {
-    display: none;
-  }
-  .zan:not(.is-open) .zan__envnote {
     display: none;
   }
   .zan__foot {

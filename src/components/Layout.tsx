@@ -2,11 +2,11 @@ import { useEffect, useRef, useState, type ReactElement, type ReactNode } from "
 import { Link, NavLink, useLocation } from "react-router-dom";
 import { getBadges, type AdminMe } from "../lib/api";
 import { BADGES_EVENT } from "../lib/badges";
-import { envHost, switchEnv, useAdminEnv } from "../lib/env";
+import { useAdminEnv } from "../lib/env";
 import { LOGS_NEED_ATTENTION } from "../content/fixtures/nav";
 import { SAMPLES_ON } from "../lib/samples";
+import { BrandLogo, DevPill } from "./BrandLogo";
 import { Icon, type IconName } from "./icons";
-import { Modal } from "./Modal";
 
 type BadgeKey = "payments_waiting" | "support_waiting" | "forms_new" | "feedback_unread";
 
@@ -129,55 +129,6 @@ function shortName(me: AdminMe): string {
   return parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1][0]}` : parts[0];
 }
 
-/** The environment switch dialog (AdminNav board copy, word for word). */
-function EnvSwitchDialog({ prod, onClose }: { prod: boolean; onClose: () => void }): ReactElement {
-  const ask = prod
-    ? {
-        title: "Switch this session to Dev?",
-        body: "You’ll work on dev.admin.zinwe.io with test data. Nothing you do there reaches customers. The whole screen gets an orange frame while you’re on Dev.",
-        fact: "Every admin page you open stays on Dev until you switch back or sign out.",
-        warn: false,
-        stay: "Stay on Production",
-        go: "Switch to Dev",
-      }
-    : {
-        title: "Go back to Production?",
-        body: "From here on, every save, approval, price change and release reaches real customers at once.",
-        fact: "Finish or throw away your Dev work first. Nothing moves from Dev to Production by itself.",
-        warn: true,
-        stay: "Stay on Dev",
-        go: "Switch to Production",
-      };
-  return (
-    <Modal
-      title={ask.title}
-      size="small"
-      role="alertdialog"
-      onClose={onClose}
-      footer={
-        <>
-          <button type="button" className="btn" onClick={onClose}>
-            {ask.stay}
-          </button>
-          <button
-            type="button"
-            className="btn dark"
-            onClick={() => {
-              switchEnv(prod ? "dev" : "prod");
-              onClose();
-            }}
-          >
-            {ask.go}
-          </button>
-        </>
-      }
-    >
-      <p style={{ margin: 0, color: "var(--ink-2)" }}>{ask.body}</p>
-      <p className={"confirm__note" + (ask.warn ? " warn" : "")}>{ask.fact}</p>
-    </Modal>
-  );
-}
-
 export function Layout({
   me,
   onSignOut,
@@ -189,9 +140,7 @@ export function Layout({
 }): ReactElement {
   const badges = useBadges();
   const docs = useDocsAvailable();
-  const env = useAdminEnv();
-  const prod = env === "prod";
-  const [asking, setAsking] = useState(false);
+  const dev = useAdminEnv() === "dev";
   const [open, setOpen] = useState(false);
   const { pathname } = useLocation();
   const menuRef = useRef<HTMLButtonElement>(null);
@@ -212,20 +161,14 @@ export function Layout({
   }).filter((g) => g.items.length > 0);
 
   return (
-    <div className={"zshell" + (prod ? "" : " is-dev")}>
+    <div className="zshell">
       <div className="zshell__nav">
         <nav className={"zan" + (open ? " is-open" : "")} aria-label="Back office">
           <div className="zan__sticky">
             <div className="zan__top">
               <div className="zan__brandrow">
                 <Link to="/" className="zan__brand">
-                  <span className="ztile" aria-hidden="true">
-                    Z
-                  </span>
-                  <span className="zan__brandtext">
-                    <b>Zinwe staff</b>
-                    <span className="zan__host">{envHost()}</span>
-                  </span>
+                  <BrandLogo height={24} extra={dev ? <DevPill /> : null} />
                 </Link>
                 <button
                   ref={menuRef}
@@ -238,23 +181,6 @@ export function Layout({
                   {open ? "Close" : "Menu"}
                 </button>
               </div>
-              <section aria-label="Environment for this session" className={"zan__env" + (prod ? "" : " is-dev")}>
-                <div className="zan__envrow">
-                  <span className="zan__envtext">
-                    <span className="zan__envlabel">THIS SESSION</span>
-                    <b className="zan__envname">
-                      <span aria-hidden="true" className="dot" />
-                      {prod ? "Production" : "Dev"}
-                    </b>
-                  </span>
-                  <button type="button" className="zan-sw" aria-haspopup="dialog" onClick={() => setAsking(true)}>
-                    {prod ? "Switch to Dev…" : "Back to Prod…"}
-                  </button>
-                </div>
-                <span className="zan__envnote">
-                  {prod ? "Changes reach real customers." : "Test data only. Customers see nothing you do here."}
-                </span>
-              </section>
             </div>
 
             <div className="zan__groups">
@@ -315,17 +241,6 @@ export function Layout({
       </div>
 
       <main className="zmain">{children}</main>
-
-      {!prod ? (
-        <div>
-          <div aria-hidden="true" className="zdev-frame" />
-          <div role="note" className="zdev-note">
-            DEV — changes here don’t touch customers
-          </div>
-        </div>
-      ) : null}
-
-      {asking ? <EnvSwitchDialog prod={prod} onClose={() => setAsking(false)} /> : null}
     </div>
   );
 }

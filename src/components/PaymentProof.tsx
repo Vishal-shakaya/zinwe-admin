@@ -1,8 +1,8 @@
 import { useEffect, useState, type ReactElement } from "react";
-import { fetchProof } from "../lib/api";
+import { ApiError, fetchProof } from "../lib/api";
 import "../styles/payment-proof.css";
 
-type ProofState = { url: string; type: string; size: number } | "loading" | "error";
+type ProofState = { url: string; type: string; size: number } | "loading" | "error" | "missing";
 
 function kb(bytes: number): string {
   return bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
@@ -26,8 +26,9 @@ export function PaymentProof({ paymentId, hasProof }: { paymentId: number; hasPr
         url = URL.createObjectURL(blob);
         if (alive) setState({ url, type: blob.type, size: blob.size });
       })
-      .catch(() => {
-        if (alive) setState("error");
+      .catch((e: unknown) => {
+        // 404 = the payment says a receipt was sent but the file isn't on the server: reloading won't help.
+        if (alive) setState(e instanceof ApiError && e.status === 404 ? "missing" : "error");
       });
     return () => {
       alive = false;
@@ -52,6 +53,18 @@ export function PaymentProof({ paymentId, hasProof }: { paymentId: number; hasPr
       <figure className="pproof" aria-busy="true">
         <div className="pproof__tray">
           <span className="pproof__loading shimmer" aria-label="Loading the receipt" />
+        </div>
+      </figure>
+    );
+  }
+  if (state === "missing") {
+    return (
+      <figure className="pproof">
+        <div className="pproof__tray pproof__tray--note">
+          <p className="pproof__err" role="alert">
+            <b>The receipt file is missing on the server.</b> Check the amount and reference against the bank
+            statement, UPI app or Skydo, or ask the customer to send the receipt again.
+          </p>
         </div>
       </figure>
     );

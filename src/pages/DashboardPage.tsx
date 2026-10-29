@@ -19,7 +19,6 @@ import {
 } from "../lib/api";
 import { ApiError } from "../lib/api";
 import { methodLabel } from "../lib/format";
-import { envHost, useAdminEnv } from "../lib/env";
 import { Icon, type IconName } from "../components/icons";
 import { ErrorState, SampleTag } from "../components/States";
 import {
@@ -29,6 +28,7 @@ import {
   WEBSITE_LIVE,
 } from "../content/fixtures/dashboard";
 import { LOG_ATTENTION, LOG_EVENTS } from "../content/fixtures/logs";
+import { useAdminEnv } from "../lib/env";
 import { SAMPLES_ON } from "../lib/samples";
 import "../styles/dashboard.css";
 
@@ -155,8 +155,7 @@ function ChartEmpty({ text }: { text: string }): ReactElement {
 /* ---------- page ---------- */
 
 export function DashboardPage({ me }: { me: AdminMe }): ReactElement {
-  const env = useAdminEnv();
-  const dev = env === "dev";
+  const dev = useAdminEnv() === "dev";
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [side, setSide] = useState<Side>(EMPTY_SIDE);
   const [error, setError] = useState<string | null>(null);
@@ -214,10 +213,6 @@ export function DashboardPage({ me }: { me: AdminMe }): ReactElement {
             <h1 className="zdash__title">
               {greeting()}, {firstName(me)}
             </h1>
-            <span className={"env-pill" + (dev ? " is-dev" : "")}>
-              <span className="dot" />
-              {dev ? `Dev · ${envHost()}` : `Production · ${envHost()}`}
-            </span>
           </div>
         </div>
         <div className="phead__actions">
