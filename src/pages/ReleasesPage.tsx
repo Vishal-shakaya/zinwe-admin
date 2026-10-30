@@ -608,7 +608,7 @@ function VersionsCard({
             <span className="rl-flex">
               <span className="k num">{((u.pcs / all) * 100).toFixed(u.pcs < 10 ? 1 : 0)}%</span>
               {cmp(u.lowest, minSaved) < 0 ? <span className="pill bad">Below minimum</span> : null}
-              {u.label === latestUse ? <span className="pill good">Latest</span> : null}
+              {u.label === latestUse ? <span className="pill accent">Latest</span> : null}
               {u.note ? <span className="k">{u.note}</span> : null}
             </span>
           </li>
@@ -826,7 +826,7 @@ function NewRelease({
             if (f) void pick(f);
           }}
         >
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#3E4147" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#404040" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M12 15V4M7 9l5-5 5 5" />
             <path d="M4 15v3.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V15" />
           </svg>
@@ -883,7 +883,7 @@ function NewRelease({
       {!external && file ? (
         <div className="rl-file">
           <span className="rl-file__icon" aria-hidden="true">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2B2F35" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#333333" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <path d="M14 3.5H7A1.5 1.5 0 0 0 5.5 5v14A1.5 1.5 0 0 0 7 20.5h10a1.5 1.5 0 0 0 1.5-1.5V8z" />
               <path d="M14 3.5V8h4.5" />
             </svg>
@@ -905,7 +905,7 @@ function NewRelease({
               aria-valuemax={100}
               aria-valuenow={stage === "reading" ? 50 : 100}
             >
-              <span style={{ width: stage === "reading" ? "50%" : "100%", background: stage === "reading" ? undefined : "#17603A" }} />
+              <span style={{ width: stage === "reading" ? "50%" : "100%", background: stage === "reading" ? undefined : "var(--ok)" }} />
             </span>
           </div>
           {!published ? (

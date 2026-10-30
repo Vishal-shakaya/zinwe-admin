@@ -22,10 +22,10 @@ export interface VersionInUse {
 }
 
 export const AGENT_VERSIONS_IN_USE: VersionInUse[] = [
-  { label: "1.2.1", lowest: "1.2.1", pcs: 12, colour: "#16181B", note: "" },
-  { label: "1.2.0", lowest: "1.2.0", pcs: 196, colour: "#5E6167", note: "" },
-  { label: "1.1.x", lowest: "1.1.2", pcs: 5, colour: "#A9ADB3", note: "offline since before 23 Oct" },
-  { label: "1.0.4", lowest: "1.0.4", pcs: 1, colour: "#A3260F", note: "last seen 19 Aug" },
+  { label: "1.2.1", lowest: "1.2.1", pcs: 12, colour: "var(--accent)", note: "" },
+  { label: "1.2.0", lowest: "1.2.0", pcs: 196, colour: "var(--ink-2)", note: "" },
+  { label: "1.1.x", lowest: "1.1.2", pcs: 5, colour: "var(--ink-4)", note: "offline since before 23 Oct" },
+  { label: "1.0.4", lowest: "1.0.4", pcs: 1, colour: "var(--danger)", note: "last seen 19 Aug" },
 ];
 
 /** Exact versions behind the buckets above (for "N PCs below the minimum"). */

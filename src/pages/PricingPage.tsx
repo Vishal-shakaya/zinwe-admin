@@ -417,7 +417,7 @@ export function PricingPage(): ReactElement {
           <section aria-labelledby="plans-h" className="zp-sec">
             <div className="zp-sec__head">
               <h2 id="plans-h">The five plans</h2>
-              <span className="k">Changed fields are tinted blue until you save. A year must cost between 6 and 12 months.</span>
+              <span className="k">Changed fields are tinted orange until you save. A year must cost between 6 and 12 months.</span>
             </div>
             <div className="zp-cards">
               {plans.map((p) =>
@@ -513,7 +513,7 @@ export function PricingPage(): ReactElement {
           </ul>
           {bigChanges.length ? (
             <div className="zp-big">
-              <b style={{ color: "#8a5300" }}>
+              <b style={{ color: "var(--accent-text)" }}>
                 {bigChanges.length === 1 ? "1 change is more than 30%." : `${bigChanges.length} changes are more than 30%.`}
               </b>
               <span>A missing or extra digit is the usual cause. Check the Plans page preview before you save.</span>
@@ -611,7 +611,7 @@ function PlanCard({
         <div className="zp-card__flags">
           {dirty ? <span className="pill zp-unsaved">Not saved</span> : null}
           {p.is_recommended ? (
-            <span className="pill good">Recommended</span>
+            <span className="pill accent">Recommended</span>
           ) : !p.is_free ? (
             <button type="button" className="zp-rec-btn" onClick={onRecommend} disabled={recBusy}>
               {recBusy ? "Saving…" : "Make recommended"}

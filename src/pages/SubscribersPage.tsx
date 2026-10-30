@@ -194,7 +194,7 @@ export function SubscribersPage(): ReactElement {
         <section aria-labelledby="chk-h" className="sb-checks">
           <div className="sb-checks__head">
             <div className="sb-checks__title">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#7A4D00" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#A84505" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <rect x="3" y="5" width="18" height="14" rx="2" />
                 <path d="M3 10h18M7 15h4" />
               </svg>
@@ -242,7 +242,7 @@ export function SubscribersPage(): ReactElement {
             <label className="sr" htmlFor="sb-q">
               Search customers
             </label>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5E6167" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B6B6B" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
               <circle cx="11" cy="11" r="6.5" />
               <path d="M16 16l4 4" />
             </svg>
@@ -366,7 +366,7 @@ export function SubscribersPage(): ReactElement {
                           {u.full ? " · full" : ""}
                         </span>
                         <span className="bar sb-bar">
-                          <span style={{ width: `${u.pct}%`, background: u.full ? "#A3260F" : undefined }} />
+                          <span style={{ width: `${u.pct}%`, background: u.full ? "var(--danger)" : undefined }} />
                         </span>
                       </td>
                       <td className="sb-ctry">

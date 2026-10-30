@@ -3,12 +3,12 @@
 /* Legacy page styles (pre-v1.3). Tokens and shared primitives now live in styles/base.css; these aliases
    keep the older page sections on the new palette until each page is rebuilt from its board. */
 :root {
-  --orange: #2f4a6b;
-  --orange-deep: #1c2f45;
-  --orange-tint: #e6edf5;
-  --line-strong: #d4d5d1;
-  --paper: #f7f7f5;
-  --white: #fff;
+  --orange: var(--accent); /* was blue #2f4a6b */
+  --orange-deep: var(--accent-text); /* #1c2f45 */
+  --orange-tint: var(--accent-tint); /* #e6edf5 */
+  --line-strong: var(--line-2);
+  --paper: var(--surface-2);
+  --white: var(--surface);
 }
 
 .sheet {
@@ -26,7 +26,7 @@
   font-weight: 600;
   padding: 12px 16px;
   border-bottom: 1px solid var(--line);
-  background: #fbfbfc;
+  background: var(--surface-3);
   position: sticky;
   top: 0;
 }
@@ -42,7 +42,7 @@
 }
 
 .sheet tbody tr:hover {
-  background: #fcfcfd;
+  background: var(--surface-3);
 }
 
 .muted {
@@ -88,7 +88,7 @@
   background: var(--white);
   border: 1px solid var(--line);
   border-radius: 10px;
-  box-shadow: 0 12px 32px rgba(15, 18, 25, 0.16), 0 2px 6px rgba(15, 18, 25, 0.06);
+  box-shadow: 0 12px 32px rgba(20, 18, 16, 0.16), 0 2px 6px rgba(20, 18, 16, 0.06);
   animation: pop-in 0.12s ease-out;
 }
 
@@ -131,7 +131,7 @@
 .rte .ql-toolbar.ql-snow {
   border-color: var(--line-strong);
   border-radius: var(--radius-sm) var(--radius-sm) 0 0;
-  background: #fbfbfc;
+  background: var(--surface-3);
   font-family: var(--font);
 }
 .rte .ql-container.ql-snow {

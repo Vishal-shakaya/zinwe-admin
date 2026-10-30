@@ -16,8 +16,8 @@ button.ss-kpi:hover {
   border-color: var(--ink);
 }
 .ss-kpi--hot {
-  border-color: #ebcf97;
-  background: #fffcf5;
+  border-color: var(--accent-line);
+  background: var(--accent-tint-2);
 }
 .ss-kpi b {
   font-size: 24px;
@@ -50,7 +50,7 @@ button.ss-kpi:hover {
 }
 .ss-tabs .tab.on .pill {
   background: var(--ink);
-  color: #fff;
+  color: var(--on-ink);
 }
 .ss-tools {
   padding: 12px 16px;

@@ -102,7 +102,7 @@
 .docs__article ul,
 .docs__article ol { margin: 0 0 12px; padding-left: 22px; }
 .docs__article li { margin: 3px 0; }
-.docs__article a { color: #b24d01; text-underline-offset: 2px; }
+.docs__article a { color: var(--accent-text); text-underline-offset: 2px; }
 .docs__article strong { font-weight: 650; }
 .docs__article blockquote {
   margin: 14px 0;
@@ -125,8 +125,8 @@
   margin: 12px 0 16px;
   padding: 14px 16px;
   border-radius: var(--radius-sm);
-  background: #17181b;
-  color: #eceef1;
+  background: var(--ink);
+  color: var(--line-soft);
   overflow-x: auto;
   font-size: 13px;
   line-height: 1.55;

@@ -431,7 +431,7 @@ export function LogsPage(): ReactElement {
       {first ? (
         <section aria-labelledby="attn-h" className="lg-attn">
           <div className="lg-attn__text">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#A3260F" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flex: "none", marginTop: 2 }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C0331C" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flex: "none", marginTop: 2 }}>
               <path d="M12 3.5L2.5 20h19z" />
               <path d="M12 10v4.5M12 17.5h.01" />
             </svg>
@@ -560,7 +560,7 @@ export function LogsPage(): ReactElement {
                           <td>
                             <button type="button" className="lg-x" aria-expanded={isOpen} onClick={() => setOpen((o) => ({ ...o, [e.id]: !isOpen }))}>
                               <span className="t">{e.what}</span>
-                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5E6167" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flex: "none", transform: isOpen ? "rotate(180deg)" : "none" }}>
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B6B6B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flex: "none", transform: isOpen ? "rotate(180deg)" : "none" }}>
                                 <path d="M6 9l6 6 6-6" />
                               </svg>
                             </button>

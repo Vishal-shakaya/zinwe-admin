@@ -1,19 +1,20 @@
 /* AdminAnnouncements board */
 .pill.an-k-info {
-  background: #e6ecf3;
-  color: #1f3a5a;
+  background: var(--surface-2);
+  color: var(--ink-2);
 }
 .pill.an-k-offer {
   background: var(--ink);
-  color: #fff;
+  color: var(--on-ink);
 }
 .pill.an-k-maint {
   background: var(--warn-tint);
   color: var(--warn);
 }
 .pill.an-k-rel {
-  background: var(--good-tint);
-  color: var(--good);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line-2);
+  color: var(--ink);
 }
 .an-list {
   overflow: hidden;
@@ -142,7 +143,7 @@
   padding: 0 12px;
   border: 1px solid var(--line-input);
   border-radius: 8px;
-  background: #fff;
+  background: var(--surface);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
@@ -190,7 +191,7 @@
   gap: 4px;
   padding: 2px 4px 2px 10px;
   border-radius: 999px;
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--line-input);
   font-size: 13px;
   font-weight: 600;
@@ -205,7 +206,7 @@
   height: 28px;
   border: 0;
   border-radius: 999px;
-  background: #fff;
+  background: var(--surface);
   flex: none;
 }
 .an-chip__x:hover {
@@ -287,18 +288,18 @@
 }
 .an-pv {
   margin: 0;
-  border: 1px solid #dcd6cb;
+  border: 1px solid var(--line-2);
   border-radius: 12px;
   overflow: hidden;
-  background: #f7f6f2;
+  background: var(--surface-2);
 }
 .an-pv__chrome {
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 8px 12px;
-  background: #fff;
-  border-bottom: 1px solid #e7e3da;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
 }
 .an-pv__dots {
   display: flex;
@@ -324,8 +325,8 @@
 .an-pv__side {
   width: 64px;
   flex: none;
-  background: #fff;
-  border-right: 1px solid #e7e3da;
+  background: var(--surface);
+  border-right: 1px solid var(--line);
   padding: 12px 10px;
   display: flex;
   flex-direction: column;
@@ -335,12 +336,12 @@
   width: 26px;
   height: 26px;
   border-radius: 7px;
-  background: #e7e3da;
+  background: var(--line);
 }
 .an-pv__line {
   height: 8px;
   border-radius: 4px;
-  background: #efece5;
+  background: var(--line-soft);
 }
 .an-pv__main {
   flex: 1 1 auto;
@@ -388,7 +389,7 @@
 .an-pv__hello {
   font-size: 15px;
   font-weight: 700;
-  color: #141210;
+  color: var(--ink);
 }
 .an-pv__tiles {
   display: grid;
@@ -399,8 +400,8 @@
 .an-pv__big {
   height: 54px;
   border-radius: 10px;
-  background: #fff;
-  border: 1px solid #e7e3da;
+  background: var(--surface);
+  border: 1px solid var(--line);
 }
 .an-pv__big {
   height: 120px;
@@ -447,11 +448,11 @@
 }
 .an-ladder li.is-on {
   background: var(--ink);
-  color: #fff;
+  color: var(--on-ink);
   font-weight: 600;
 }
 .an-ladder li.is-on .k {
-  color: #fff;
+  color: var(--on-ink);
 }
 .an-ladder__n {
   display: inline-flex;
@@ -467,7 +468,7 @@
   color: var(--ink-2);
 }
 .an-ladder li.is-on .an-ladder__n {
-  background: #fff;
+  background: var(--surface);
   color: var(--ink);
 }
 

@@ -802,7 +802,7 @@ function SignupsChart({ signups }: { signups: Metrics["signups"] }): ReactElemen
                 key={s.date}
                 title={`${dayMonth(new Date(s.date))} · ${s.count} ${s.count === 1 ? "sign-up" : "sign-ups"}`}
                 className="dbc__bar"
-                style={{ height: `${(s.count / dom) * 100}%`, background: i === n - 1 ? "#16181B" : "#3B4048" }}
+                style={{ height: `${(s.count / dom) * 100}%`, background: i === n - 1 ? "var(--accent)" : "var(--ink-2)" }}
               />
             ))}
           </div>
@@ -853,8 +853,12 @@ function RevenueChart({ view }: { view: View }): ReactElement {
       </div>
       <div className="zdash__legend">
         <span>
-          <span aria-hidden="true" className="zdash__sw" style={{ background: "#3B4048" }} />
+          <span aria-hidden="true" className="zdash__sw" style={{ background: "var(--ink-2)" }} />
           Verified payments, as recorded
+        </span>
+        <span>
+          <span aria-hidden="true" className="zdash__sw" style={{ background: "var(--accent)" }} />
+          This month, to date
         </span>
       </div>
       <div
@@ -874,7 +878,7 @@ function RevenueChart({ view }: { view: View }): ReactElement {
                   style={{ height: `${(r.value / dom) * 100}%`, display: r.value ? "flex" : "none" }}
                 >
                   <span className="num dbc__top">{short(Math.round(r.value / 100) * 100)}</span>
-                  <span style={{ display: "block", flex: "1 0 0", background: i === rev.length - 1 ? "#16181B" : "#3B4048", borderRadius: "3px 3px 0 0" }} />
+                  <span style={{ display: "block", flex: "1 0 0", background: i === rev.length - 1 ? "var(--accent)" : "var(--ink-2)", borderRadius: "3px 3px 0 0" }} />
                 </div>
               </div>
             ))}
@@ -913,7 +917,7 @@ function VersionsChart(): ReactElement {
   const data = AGENT_VERSIONS_BY_DAY;
   const dom = 250;
   const items = ticks(dom, 50, (v) => String(v));
-  const COL = ["#16181B", "#6E747C", "#C9CCD1"];
+  const COL = ["var(--accent)", "var(--ink-2)", "var(--line-2)"];
   const today = data[data.length - 1].counts;
   const labelAt = new Set([0, 4, 8, data.length - 1]);
   return (
@@ -930,7 +934,7 @@ function VersionsChart(): ReactElement {
             <span
               aria-hidden="true"
               className="zdash__sw"
-              style={{ background: COL[i], outline: i === 2 ? "1px solid #A9ACB1" : undefined, outlineOffset: -1 }}
+              style={{ background: COL[i], outline: i === 2 ? "1px solid var(--ink-4)" : undefined, outlineOffset: -1 }}
             />
             {label} <b className="num" style={{ color: "var(--ink)" }}>{today[i]}</b>
           </span>

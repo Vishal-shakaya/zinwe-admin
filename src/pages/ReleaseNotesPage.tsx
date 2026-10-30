@@ -668,7 +668,7 @@ export function ReleaseNotesPage(): ReactElement {
             {pv === "web" ? (
               <div className="wn-pv">
                 <div className="wn-pv__bar">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#5E6167" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B6B6B" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <rect x="5" y="10.5" width="14" height="9.5" rx="1.5" />
                     <path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" />
                   </svg>
@@ -727,7 +727,7 @@ export function ReleaseNotesPage(): ReactElement {
                     <div className="wn-bell__note">
                       <span className="wn-bell__tag">What's new · Zinwe {d.version}</span>
                       <b style={{ fontSize: 15 }}>{d.title || "Your title"}</b>
-                      <span style={{ fontSize: 13, color: "#2E2A25" }}>
+                      <span style={{ fontSize: 13, color: "var(--ink-2)" }}>
                         {d.summary.trim() || firstPoint(d) || "The first point of the note shows here."}
                       </span>
                       <span className="wn-bell__link">Read the full note</span>
@@ -735,7 +735,7 @@ export function ReleaseNotesPage(): ReactElement {
                     {SAMPLES_ON ? (
                       <div className="wn-bell__row">
                         <span style={{ fontSize: 13 }}>{BELL_SAMPLE_ALERT.title}</span>
-                        <span style={{ fontSize: 12, color: "#6B6358" }}>{BELL_SAMPLE_ALERT.meta}</span>
+                        <span style={{ fontSize: 12, color: "var(--ink-3)" }}>{BELL_SAMPLE_ALERT.meta}</span>
                       </div>
                     ) : null}
                   </div>

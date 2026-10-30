@@ -4,7 +4,7 @@
   color: var(--ink-2);
 }
 .wn-behind {
-  background: #fdf6e7;
+  background: var(--accent-tint-2);
   border: 1px solid var(--warn-line);
   border-radius: 12px;
   padding: 12px 16px;
@@ -153,7 +153,7 @@
   background: var(--line-soft);
 }
 .wn-drop {
-  border: 1.5px dashed #b9bcc1;
+  border: 1.5px dashed var(--ink-4);
   border-radius: 10px;
   background: var(--hover-2);
   padding: 16px;
@@ -231,11 +231,11 @@
   padding: 32px 20px;
   text-align: center;
   color: var(--ink-3);
-  background: #f7f6f2;
+  background: var(--surface-2);
 }
 .wn-pv__page {
-  background: #f7f6f2;
-  color: #141210;
+  background: var(--surface-2);
+  color: var(--ink);
   padding: 24px 24px 28px;
   display: flex;
   flex-direction: column;
@@ -246,11 +246,11 @@
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #6b6358;
+  color: var(--ink-3);
 }
 .wn-pv__card {
-  background: #fff;
-  border: 1px solid #e7e3da;
+  background: var(--surface);
+  border: 1px solid var(--line);
   border-radius: 14px;
   padding: 18px 20px;
   display: flex;
@@ -264,7 +264,7 @@
 }
 .wn-pv__meta {
   font-size: 13px;
-  color: #6b6358;
+  color: var(--ink-3);
 }
 .wn-pv__img {
   width: 100%;
@@ -287,7 +287,7 @@
   display: flex;
   flex-direction: column;
   gap: 3px;
-  color: #2e2a25;
+  color: var(--ink-2);
 }
 .wn-pv__earlier {
   display: flex;
@@ -295,7 +295,7 @@
   gap: 6px;
 }
 .wn-bell {
-  background: #f7f6f2;
+  background: var(--surface-2);
   border: 1px solid var(--line);
   border-radius: 10px;
   padding: 24px;
@@ -305,11 +305,11 @@
 .wn-bell__panel {
   width: 100%;
   max-width: 360px;
-  background: #fff;
-  border: 1px solid #e7e3da;
+  background: var(--surface);
+  border: 1px solid var(--line);
   border-radius: 14px;
   box-shadow: 0 10px 28px rgba(20, 18, 16, 0.1);
-  color: #141210;
+  color: var(--ink);
   overflow: hidden;
 }
 .wn-bell__head {
@@ -317,35 +317,35 @@
   justify-content: space-between;
   align-items: center;
   padding: 12px 14px;
-  border-bottom: 1px solid #f0ede6;
+  border-bottom: 1px solid var(--line-soft);
 }
 .wn-bell__head span {
   font-size: 12px;
-  color: #6b6358;
+  color: var(--ink-3);
 }
 .wn-bell__note {
   padding: 14px;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  background: #fbfaf7;
+  background: var(--surface-3);
 }
 .wn-bell__tag {
   font-size: 12px;
   font-weight: 600;
-  color: #6b6358;
+  color: var(--ink-3);
 }
 .wn-bell__link {
   font-size: 13px;
   font-weight: 600;
-  color: #a84505;
+  color: var(--accent-text);
 }
 .wn-bell__row {
   padding: 12px 14px;
   display: flex;
   flex-direction: column;
   gap: 2px;
-  border-top: 1px solid #f0ede6;
+  border-top: 1px solid var(--line-soft);
 }
 @media (max-width: 640px) {
   .wn-two {

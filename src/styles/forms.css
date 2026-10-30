@@ -38,7 +38,7 @@
 }
 .pill.zfm-tab__n.is-new {
   background: var(--ink);
-  color: #fff;
+  color: var(--on-ink);
 }
 
 .zfm-bar {
@@ -94,13 +94,13 @@
   padding-right: 16px;
 }
 .tbl.zfm-tbl tbody tr td {
-  background: #fff;
+  background: var(--surface);
 }
 .tbl.zfm-tbl tbody tr.is-new td {
-  background: #f5f8fb;
+  background: var(--surface-2);
 }
 .tbl.zfm-tbl tbody tr.is-on td {
-  background: #eceef1;
+  background: var(--surface-2);
 }
 .zfm-dot {
   display: inline-flex;
@@ -188,14 +188,14 @@
   outline-offset: 1px;
 }
 .zfm-stsel.is-new {
-  background: #e6ecf3;
-  color: #1f3a5a;
-  border-color: #b9c7d8;
+  background: var(--accent-tint);
+  color: var(--accent-ink);
+  border-color: var(--accent-line);
 }
 .zfm-stsel.is-contacted {
-  background: var(--warn-tint);
-  color: var(--warn);
-  border-color: #ebd3a0;
+  background: var(--surface);
+  color: var(--ink-2);
+  border-color: var(--ink-4);
 }
 .zfm-stsel.is-done {
   background: var(--fill-2);
@@ -264,7 +264,7 @@
   height: 40px;
   border-radius: 8px;
   border: 1px solid var(--line-input);
-  background: #fff;
+  background: var(--surface);
   flex: none;
 }
 .zfm-ibtn:hover {

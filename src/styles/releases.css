@@ -6,9 +6,9 @@
   align-items: center;
 }
 .pill.rl-pill-dev {
-  background: #fff;
+  background: var(--surface);
   color: var(--ink);
-  border: 1px solid #a9acb1;
+  border: 1px solid var(--ink-4);
 }
 .pill.rl-pill-gone {
   background: var(--fill-2);
@@ -218,7 +218,7 @@
   gap: 6px;
 }
 .rl-drop {
-  border: 1.5px dashed #b9bcc1;
+  border: 1.5px dashed var(--ink-4);
   border-radius: 12px;
   background: var(--hover-2);
   padding: 28px 20px;
@@ -306,7 +306,7 @@
   display: flex;
   gap: 10px;
   align-items: flex-start;
-  background: #fdf6e7;
+  background: var(--accent-tint-2);
   border: 1px solid var(--warn-line);
   border-radius: 10px;
   padding: 10px 12px;

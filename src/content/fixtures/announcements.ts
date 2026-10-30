@@ -46,10 +46,10 @@ export interface SystemBar {
 }
 
 export const SYSTEM_BARS: Record<Exclude<PreviewAs, "normal">, SystemBar> = {
-  ended: { bar: "#FBE7E3", fg: "#8A1F0B", btnBg: "#8A1F0B", btnFg: "#fff", icon: "warn", title: "Your Businesses plan ended on 25 Oct.", msg: "Renew to keep alerts and backups running.", btn: "Renew", name: "plan ended" },
-  ending: { bar: "#FDF0D5", fg: "#5C3A00", btnBg: "#5C3A00", btnFg: "#fff", icon: "clock", title: "Your Businesses plan ends in 3 days.", msg: "Renew now so nothing stops on Sat 31 Oct.", btn: "Renew", name: "plan ends soon" },
-  payment: { bar: "#E6ECF3", fg: "#1F3A5A", btnBg: "", btnFg: "", icon: "clock", title: "We’re checking your payment.", msg: "This usually takes a few hours. Everything keeps working.", btn: "", name: "payment being checked" },
-  full: { bar: "#FDF0D5", fg: "#5C3A00", btnBg: "#5C3A00", btnFg: "#fff", icon: "pcs", title: "49 of 50 PCs used.", msg: "Add PCs before you run out.", btn: "Add PCs", name: "PCs nearly full" },
+  ended: { bar: "#FCE8E4", fg: "#8E2414", btnBg: "#8E2414", btnFg: "#FFFFFF", icon: "warn", title: "Your Businesses plan ended on 25 Oct.", msg: "Renew to keep alerts and backups running.", btn: "Renew", name: "plan ended" },
+  ending: { bar: "#FDEBDC", fg: "#8A3A04", btnBg: "#8A3A04", btnFg: "#FFFFFF", icon: "clock", title: "Your Businesses plan ends in 3 days.", msg: "Renew now so nothing stops on Sat 31 Oct.", btn: "Renew", name: "plan ends soon" },
+  payment: { bar: "#F5F5F5", fg: "#141210", btnBg: "", btnFg: "", icon: "clock", title: "We’re checking your payment.", msg: "This usually takes a few hours. Everything keeps working.", btn: "", name: "payment being checked" },
+  full: { bar: "#FDEBDC", fg: "#8A3A04", btnBg: "#8A3A04", btnFg: "#FFFFFF", icon: "pcs", title: "49 of 50 PCs used.", msg: "Add PCs before you run out.", btn: "Add PCs", name: "PCs nearly full" },
 };
 
 export const BAR_LADDER: { key: PreviewAs | "ann"; label: string }[] = [

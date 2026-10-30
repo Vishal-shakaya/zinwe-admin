@@ -353,7 +353,7 @@ function SeriesBlock({
                           ) : null}
                         </td>
                         <td className="bl-nowrap">
-                          <span className={"pill " + (a.free_preview ? "good" : "bl-st--draft")}>
+                          <span className={"pill " + (a.free_preview ? "accent" : "bl-st--draft")}>
                             {a.free_preview ? "Free, all public" : "Public opening · rest members-only"}
                           </span>
                         </td>

@@ -2,8 +2,8 @@
 
 /* ---------- Payments to check (amber banner) ---------- */
 .sb-checks {
-  background: #fff8eb;
-  border: 1px solid #ebcf97;
+  background: var(--accent-tint-2);
+  border: 1px solid var(--accent-line);
   border-radius: 12px;
   padding: 14px 16px;
   display: flex;
@@ -37,8 +37,8 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 10px 16px;
-  background: #fff;
-  border: 1px solid #f0e2c4;
+  background: var(--surface);
+  border: 1px solid var(--accent-line);
   border-radius: 10px;
   padding: 8px 8px 8px 14px;
 }
@@ -95,7 +95,7 @@
   color: var(--mute);
 }
 .chip.on .sb-chip-n {
-  color: #c4c7cc;
+  color: var(--on-dark-mute);
 }
 .sb-shown {
   white-space: nowrap;
@@ -323,7 +323,7 @@
   color: var(--ink);
 }
 .sb-drawer::backdrop {
-  background: rgba(22, 24, 27, 0.34);
+  background: rgba(20, 18, 16, 0.34);
 }
 .sb-drawer[open] {
   animation: sb-drawer-in 0.18s ease-out;
@@ -345,7 +345,7 @@
 }
 .sb-drawer__panel {
   height: 100%;
-  background: #fff;
+  background: var(--surface);
   box-shadow: -12px 0 32px rgba(0, 0, 0, 0.14);
   display: flex;
   flex-direction: column;
@@ -532,7 +532,7 @@
   gap: 10px;
   align-items: center;
   padding: 7px 0;
-  border-top: 1px solid #f0f0ed;
+  border-top: 1px solid var(--line-soft);
   font-size: 13px;
 }
 .sb-pcs__row.is-off {
@@ -567,9 +567,9 @@
 
 /* ---------- Pending payment ---------- */
 .sb-pend {
-  border: 1px solid #ebcf97;
+  border: 1px solid var(--accent-line);
   border-radius: 12px;
-  background: #fffcf5;
+  background: var(--accent-tint-2);
   padding: 16px;
   display: flex;
   flex-direction: column;
@@ -655,18 +655,18 @@
   border: 1px solid var(--line);
   border-radius: 10px;
   padding: 12px;
-  background: #fff;
+  background: var(--surface);
   display: flex;
   flex-direction: column;
   gap: 10px;
   min-width: 0;
 }
 .sb-step.is-ready {
-  border-color: #b9dcc8;
-  background: #f6fbf8;
+  border-color: var(--good-line);
+  background: var(--ok-tint);
 }
 .sb-step.is-short {
-  border-color: #e8d3a6;
+  border-color: var(--accent-line);
 }
 .sb-step legend {
   padding: 0 4px;
@@ -711,7 +711,7 @@
 }
 .sb-msg--warn {
   font-weight: 600;
-  color: #8a5300;
+  color: var(--accent-text);
 }
 p.sb-msg {
   margin: 0;
@@ -740,14 +740,14 @@ p.sb-msg {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  background: #fbf0d5;
+  background: var(--accent-tint);
   border-radius: 8px;
   padding: 10px 12px;
   font-size: 13px;
   color: var(--warn-ink);
 }
 .sb-short b {
-  color: #8a5300;
+  color: var(--accent-text);
 }
 .sb-short__row {
   display: flex;
@@ -773,7 +773,7 @@ p.sb-msg {
   flex: 1 1 220px;
 }
 .sb-reject {
-  border-top: 1px solid #f0e2c4;
+  border-top: 1px solid var(--accent-line);
   padding-top: 12px;
   display: flex;
   flex-direction: column;
@@ -791,7 +791,7 @@ p.sb-msg {
   padding: 0 10px;
   border-radius: 999px;
   border: 1px solid var(--line-input);
-  background: #fff;
+  background: var(--surface);
   font-weight: 500;
   font-size: 12px;
 }
@@ -803,7 +803,7 @@ p.sb-msg {
   padding: 10px 12px;
   border: 1px solid var(--line-input);
   border-radius: 8px;
-  background: #fff;
+  background: var(--surface);
   resize: vertical;
   min-height: 76px;
   font-weight: 400;
@@ -848,7 +848,7 @@ p.sb-msg {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 4px 14px;
   padding: 10px 14px;
-  border-bottom: 1px solid #f0f0ed;
+  border-bottom: 1px solid var(--line-soft);
   font-size: 13px;
 }
 .sb-hist li:last-child {
@@ -870,7 +870,7 @@ p.sb-msg {
 .sb-hist__due {
   font-size: 12px;
   font-weight: 600;
-  color: #8a5300;
+  color: var(--accent-text);
 }
 .sb-hist__r {
   display: flex;
@@ -935,7 +935,7 @@ p.sb-msg {
   border-radius: 10px;
 }
 .sb-mails li {
-  border-bottom: 1px solid #f0f0ed;
+  border-bottom: 1px solid var(--line-soft);
 }
 .sb-mails li:last-child {
   border-bottom: 0;
@@ -963,7 +963,7 @@ p.sb-msg {
   font-size: 13px;
   color: var(--ink-2);
   background: var(--hover-2);
-  border-top: 1px solid #f0f0ed;
+  border-top: 1px solid var(--line-soft);
 }
 
 /* ---------- Actions ---------- */
@@ -975,7 +975,7 @@ p.sb-msg {
   justify-content: space-between;
 }
 .sb-arow--rule {
-  border-top: 1px solid #f0f0ed;
+  border-top: 1px solid var(--line-soft);
   padding-top: 10px;
 }
 .sb-arow__text {

@@ -67,11 +67,12 @@ const SYS_ICON = {
 
 /** Bar colours in the customer dashboard: [bar background, text, button background, button text]. */
 const KIND_BAR: Record<AnnouncementKind, [string, string, string, string]> = {
-  news: ["#E6ECF3", "#1F3A5A", "#1F3A5A", "#fff"],
-  offer: ["#16181B", "#fff", "#fff", "#16181B"],
-  discount: ["#16181B", "#fff", "#fff", "#16181B"],
-  maintenance: ["#FDF0D5", "#5C3A00", "#5C3A00", "#fff"],
-  version: ["#E4F2EA", "#134D2F", "#134D2F", "#fff"],
+  // v1.3.2 colour rule: white/black/orange only. News + version = grey, offer = black, maintenance = orange tint.
+  news: ["#F5F5F5", "#141210", "#141210", "#FFFFFF"],
+  offer: ["#141210", "#FFFFFF", "#FFFFFF", "#141210"],
+  discount: ["#141210", "#FFFFFF", "#FFFFFF", "#141210"],
+  maintenance: ["#FDEBDC", "#8A3A04", "#8A3A04", "#FFFFFF"],
+  version: ["#F5F5F5", "#141210", "#141210", "#FFFFFF"],
 };
 
 const TITLE_PH: Record<AnnouncementKind, string> = {

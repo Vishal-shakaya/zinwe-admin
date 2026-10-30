@@ -16,7 +16,7 @@ interface NavItem {
   badge?: BadgeKey;
   /** Read after the count by screen readers: "2 payments to check". */
   badgeLabel?: string;
-  /** Yellow badge (money waiting) instead of the light one. */
+  /** Orange badge (money waiting) instead of the light one. */
   warn?: boolean;
   /** A red "needs attention" dot instead of a count, lit while this badge is above 0. */
   dot?: BadgeKey;

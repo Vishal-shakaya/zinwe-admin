@@ -6,58 +6,86 @@
  */
 
 :root {
-  /* Ground, ink, lines */
-  --ground: #f3f3f1;
-  --surface: #fff;
-  --ink: #16181b;
-  --ink-hover: #2b2f35;
-  --ink-2: #3e4147;
-  --ink-3: #4a4d53;
-  --mute: #5e6167;
-  --mute-2: #8a8d92;
-  --line: #e2e2de;
-  --line-soft: #ecece8;
-  --line-input: #d4d5d1;
-  --hover: #f7f7f5;
-  --hover-2: #fafaf8;
-  --fill: #efefec;
-  --fill-2: #eeeeeb;
-  --axis: #8f9399;
+  /* ---- Palette (v1.3.2 colour rule, owner 31 Oct): white, black, orange only ----
+     Pure white ground, black ink + neutral greys, orange #F26A0A as the only accent. Status colour is functional
+     only: a small red for errors/critical and a small green for online/done/paid, always beside a word or icon.
+     Amber (warning) states read as orange, blue (info/link/selected) states read as grey or orange.
+     Contrast on white: ink 18.6:1 · ink-2 10.4:1 · ink-3 5.3:1 · ink-4 3.5:1 (UI/decor only, never body text)
+     · accent 3.1:1 (fills, bars, focus rings; text on it is ink) · accent-text 6.0:1 · danger 5.5:1 · ok 6.9:1. */
+  --ground: #ffffff;
+  --surface: #ffffff;
+  --surface-2: #f5f5f5;
+  --surface-3: #fafafa;
+  --line: #e5e5e5;
+  --line-soft: #eeeeee;
+  --line-2: #d4d4d4;
+  --ink: #141210;
+  --ink-hover: #333333;
+  --ink-2: #404040;
+  --ink-3: #6b6b6b;
+  --ink-4: #8a8a8a;
+  --on-ink: #ffffff;
+  --accent: #f26a0a;
+  --accent-hover: #e05e04;
+  --accent-text: #a84505;
+  --accent-ink: #8a3a04;
+  --accent-tint: #fdebdc;
+  --accent-tint-2: #fff6ef;
+  --accent-line: #f6c9a6;
+  --danger: #c0331c;
+  --danger-ink: #8e2414;
+  --danger-tint: #fce8e4;
+  --danger-line: #f0c4b9;
+  --ok: #17663f;
+  --ok-tint: #e3f4ea;
+  /* Status dots on the black toast (light on dark): green = done, red = failed. */
+  --ok-on-ink: #5fd39a;
+  --danger-on-ink: #ff7a66;
 
-  /* Accent: links and focus */
-  --link: #2f4a6b;
-  --link-hover: #1c2f45;
-  --focus: #2f4a6b;
-  --brand: #f26a0a;
+  /* ---- Older names, kept so page CSS reads the palette (old value -> new) ---- */
+  --mute: var(--ink-3); /* #5e6167 */
+  --mute-2: var(--ink-4); /* #8a8d92 */
+  --line-input: var(--line-2); /* #d4d5d1 */
+  --hover: var(--surface-2); /* #f7f7f5 */
+  --hover-2: var(--surface-3); /* #fafaf8 */
+  --fill: var(--line-soft); /* #efefec */
+  --fill-2: var(--line-soft); /* #eeeeeb */
+  --axis: var(--ink-4); /* #8f9399 */
 
-  /* States */
-  --good: #17603a;
-  --good-tint: #e4f2ea;
-  --good-line: #c7e2d2;
-  --good-tint-2: #eef6f1;
-  --warn: #7a4d00;
-  --warn-ink: #5c3a00;
-  --warn-tint: #fdf0d5;
-  --warn-line: #ead6a6;
-  --warn-badge: #f2b33d;
-  --bad: #a3260f;
-  --bad-ink: #7e1d0b;
-  --bad-tint: #fbe7e3;
-  --bad-line: #edc3b8;
-  --info: #1c2f45;
-  --info-tint: #e6edf5;
-  --sel: #eef1f5;
+  /* Links and focus: blue #2f4a6b -> orange */
+  --link: var(--accent-text);
+  --link-hover: var(--accent-ink);
+  --focus: var(--accent);
+  --brand: var(--accent);
 
-  /* Menu (light, v1.3.1): white surface, hairline right edge, dark text */
-  --nav: #fff;
+  /* States: good = green (functional), warn = amber -> orange, bad = red, info = blue -> grey */
+  --good: var(--ok); /* #17603a */
+  --good-tint: var(--ok-tint); /* #e4f2ea */
+  --good-line: #c4e3d0; /* #c7e2d2 */
+  --good-tint-2: var(--ok-tint); /* #eef6f1 */
+  --warn: var(--accent-text); /* #7a4d00 */
+  --warn-ink: var(--accent-ink); /* #5c3a00 */
+  --warn-tint: var(--accent-tint); /* #fdf0d5 */
+  --warn-line: var(--accent-line); /* #ead6a6 */
+  --warn-badge: var(--accent); /* #f2b33d */
+  --bad: var(--danger); /* #a3260f */
+  --bad-ink: var(--danger-ink); /* #7e1d0b */
+  --bad-tint: var(--danger-tint); /* #fbe7e3 */
+  --bad-line: var(--danger-line); /* #edc3b8 */
+  --info: var(--ink-2); /* #1c2f45 */
+  --info-tint: var(--surface-2); /* #e6edf5 */
+  --sel: var(--accent-tint); /* #eef1f5 */
+
+  /* Menu (light): white surface, hairline right edge, dark text, orange active bar */
+  --nav: var(--surface);
   --nav-line: var(--line);
   --nav-text: var(--ink-2);
-  --nav-label: var(--mute);
-  --nav-hover: var(--hover);
-  --nav-active: var(--sel);
-  --nav-active-bar: var(--link);
+  --nav-label: var(--ink-3);
+  --nav-hover: var(--surface-2);
+  --nav-active: var(--accent-tint);
+  --nav-active-bar: var(--accent);
   /* Muted text on a dark selected chip/tab (counts inside .chip.on) */
-  --on-dark-mute: #c4c7cc;
+  --on-dark-mute: #c4c4c4;
 
   --radius: 12px;
   --radius-md: 10px;
@@ -158,7 +186,7 @@ textarea {
   padding: 0 14px;
   border-radius: 8px;
   border: 1px solid var(--line-input);
-  background: #fff;
+  background: var(--surface);
   color: var(--ink);
   font-weight: 600;
   font-size: 13px;
@@ -178,18 +206,18 @@ textarea {
 .btn--primary {
   background: var(--ink);
   border-color: var(--ink);
-  color: #fff;
+  color: var(--on-ink);
 }
 .btn.dark:hover,
 .btn--primary:hover {
   background: var(--ink-hover);
-  color: #fff;
+  color: var(--on-ink);
 }
 .btn.dark:disabled,
 .btn--primary:disabled {
-  background: #55585e;
-  border-color: #55585e;
-  color: #fff;
+  background: var(--ink-3);
+  border-color: var(--ink-3);
+  color: var(--on-ink);
 }
 .btn.sm,
 .btn--sm {
@@ -209,11 +237,11 @@ textarea {
 .btn.danger-fill {
   background: var(--bad);
   border-color: var(--bad);
-  color: #fff;
+  color: var(--on-ink);
 }
 .btn.danger-fill:hover {
-  background: #861e0b;
-  color: #fff;
+  background: var(--danger-ink);
+  color: var(--on-ink);
 }
 .btn--ghost {
   /* legacy alias: the default .btn is the outlined one */
@@ -229,7 +257,7 @@ textarea {
   height: 34px;
   border-radius: 999px;
   border: 1px solid var(--line-input);
-  background: #fff;
+  background: var(--surface);
   flex: none;
   color: var(--ink);
 }
@@ -253,7 +281,7 @@ textarea {
 /* ---------- Surfaces ---------- */
 
 .card {
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 12px;
 }
@@ -262,7 +290,7 @@ textarea {
   flex-direction: column;
   gap: 4px;
   padding: 14px 16px;
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 12px;
   text-decoration: none;
@@ -298,6 +326,11 @@ button.tile:hover {
   background: var(--warn-tint);
   color: var(--warn);
 }
+/* Labels that are not a status (Recommended, Latest, Free preview): orange tint, v1.3.2 colour rule. */
+.pill.accent {
+  background: var(--accent-tint);
+  color: var(--accent-ink);
+}
 .pill--bad,
 .pill.bad {
   background: var(--bad-tint);
@@ -315,11 +348,11 @@ button.tile:hover {
 }
 .pill.dark {
   background: var(--ink);
-  color: #fff;
+  color: var(--on-ink);
 }
 .pill.outline {
   background: transparent;
-  border: 1px dashed #6b6358;
+  border: 1px dashed var(--ink-3);
   color: var(--ink-2);
   font-size: 11px;
   letter-spacing: 0.02em;
@@ -340,7 +373,7 @@ button.tile:hover {
   padding: 0 12px;
   border-radius: 999px;
   border: 1px solid var(--line-input);
-  background: #fff;
+  background: var(--surface);
   font-weight: 600;
   font-size: 13px;
   color: var(--ink);
@@ -351,7 +384,7 @@ button.tile:hover {
 .chip.on {
   background: var(--ink);
   border-color: var(--ink);
-  color: #fff;
+  color: var(--on-ink);
 }
 .chip .n {
   font-variant-numeric: tabular-nums;
@@ -367,7 +400,7 @@ button.tile:hover {
   border: 1px solid var(--line-input);
   border-radius: 8px;
   overflow: hidden;
-  background: #fff;
+  background: var(--surface);
 }
 .seg button {
   min-height: 40px;
@@ -380,7 +413,7 @@ button.tile:hover {
 }
 .seg button.on {
   background: var(--ink);
-  color: #fff;
+  color: var(--on-ink);
 }
 .seg.sm button {
   min-height: 34px;
@@ -424,7 +457,7 @@ button.tile:hover {
   padding: 0 12px;
   border: 1px solid var(--line-input);
   border-radius: 8px;
-  background: #fff;
+  background: var(--surface);
 }
 select.inp {
   padding-right: 8px;
@@ -436,7 +469,7 @@ select.inp {
   padding: 10px 12px;
   border: 1px solid var(--line-input);
   border-radius: 8px;
-  background: #fff;
+  background: var(--surface);
   resize: vertical;
   line-height: 1.5;
 }
@@ -491,7 +524,7 @@ select.inp {
   width: 44px;
   height: 26px;
   border-radius: 999px;
-  background: #c9cbc6;
+  background: var(--ink-4);
   position: relative;
   flex: none;
   transition: background 0.15s;
@@ -503,12 +536,12 @@ select.inp {
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--surface);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
   transition: left 0.15s;
 }
 .sw input:checked + .tr {
-  background: var(--ink);
+  background: var(--accent);
 }
 .sw input:checked + .tr span {
   left: 21px;
@@ -577,7 +610,7 @@ select.inp {
 .bar span {
   display: block;
   height: 100%;
-  background: #3b4048;
+  background: var(--ink-2);
   border-radius: 999px;
 }
 
@@ -677,7 +710,7 @@ select.inp {
 .shimmer {
   display: block;
   border-radius: 6px;
-  background: linear-gradient(90deg, #ecece8 0%, #f5f5f2 50%, #ecece8 100%);
+  background: linear-gradient(90deg, var(--line-soft) 0%, var(--surface-2) 50%, var(--line-soft) 100%);
   background-size: 200% 100%;
   animation: z-shimmer 1.2s linear infinite;
 }
@@ -699,7 +732,7 @@ select.inp {
   gap: 6px;
   padding: 2px 8px;
   border-radius: 999px;
-  border: 1px dashed #6b6358;
+  border: 1px dashed var(--ink-3);
   color: var(--ink-2);
   font-size: 11px;
   font-weight: 600;
@@ -922,7 +955,7 @@ select.inp {
   align-items: center;
   justify-content: center;
   background: var(--ink);
-  color: #fff;
+  color: var(--on-ink);
 }
 .zan__badge.warn {
   background: var(--warn-badge);
@@ -932,8 +965,8 @@ select.inp {
   width: 9px;
   height: 9px;
   border-radius: 50%;
-  background: #d8442b;
-  box-shadow: 0 0 0 3px rgba(216, 68, 43, 0.18);
+  background: var(--danger);
+  box-shadow: 0 0 0 3px var(--danger-tint);
 }
 .zan__foot {
   margin-top: auto;
@@ -1071,7 +1104,7 @@ select.inp {
   color: var(--ink);
 }
 .modal::backdrop {
-  background: rgba(22, 24, 27, 0.5);
+  background: rgba(20, 18, 16, 0.5);
 }
 .modal[open] {
   animation: modal-in 0.16s ease-out;
@@ -1095,7 +1128,7 @@ select.inp {
   display: flex;
   flex-direction: column;
   max-height: calc(100vh - 32px);
-  background: #fff;
+  background: var(--surface);
   border-radius: var(--radius-dialog);
   box-shadow: var(--shadow-dialog);
   overflow: hidden;
@@ -1128,7 +1161,7 @@ select.inp {
   align-items: center;
   justify-content: center;
   border: 1px solid var(--line-input);
-  background: #fff;
+  background: var(--surface);
   width: 36px;
   height: 36px;
   border-radius: 999px;
@@ -1181,7 +1214,7 @@ select.inp {
 }
 .modal--small .modal__foot {
   border-top: 0;
-  background: #fff;
+  background: var(--surface);
   padding: 12px 20px 20px;
 }
 .modal--small .modal__close {
@@ -1295,7 +1328,7 @@ select.inp {
   gap: 10px;
   max-width: 100%;
   background: var(--ink);
-  color: #fff;
+  color: var(--on-ink);
   padding: 12px 16px;
   border-radius: 10px;
   font-weight: 600;
@@ -1308,10 +1341,10 @@ select.inp {
   height: 8px;
   border-radius: 50%;
   flex: none;
-  background: #5fd39a;
+  background: var(--ok-on-ink);
 }
 .toast--bad .toast__dot {
-  background: #ff7a66;
+  background: var(--danger-on-ink);
 }
 @keyframes toast-in {
   from {
