@@ -249,3 +249,4 @@
 .mk .seq li { list-style: none; }
 .mk .finder select.inp { width: auto; }
 .mk-drawer .modal__body { box-sizing: border-box; }
+.mk .search .inp { padding-left: 12px; }
