@@ -46,6 +46,14 @@ const GROUPS: NavGroup[] = [
     ],
   },
   {
+    label: "MARKETING",
+    items: [
+      { to: "/marketing/funnel", label: "Funnel", icon: "funnel" },
+      { to: "/marketing/audience", label: "Audience", icon: "audience" },
+      { to: "/marketing/email", label: "Email campaign", icon: "mail" },
+    ],
+  },
+  {
     label: "PUBLISH",
     items: [
       { to: "/announcements", label: "Announcements", icon: "announcements" },

@@ -23,6 +23,9 @@ import { BlogSubscribersPage } from "./pages/BlogSubscribersPage";
 import { BlogSeriesPage } from "./pages/BlogSeriesPage";
 import { BlogGuidesPage } from "./pages/BlogGuidesPage";
 import { LogsPage } from "./pages/LogsPage";
+import { AudiencePage } from "./pages/marketing/AudiencePage";
+import { EmailCampaignPage } from "./pages/marketing/EmailCampaignPage";
+import { FunnelPage } from "./pages/marketing/FunnelPage";
 
 // Documentation tab: only the viewer is in the bundle. The pages come from the staff-only API (see pages/DocsPage.tsx).
 const DocsPage = lazy(() => import("./pages/DocsPage"));
@@ -81,6 +84,10 @@ export function App(): ReactElement {
             <Route path="/support" element={<SupportPage />} />
             <Route path="/forms" element={<FormsPage />} />
             <Route path="/releases" element={<ReleasesPage />} />
+            <Route path="/marketing" element={<Navigate to="/marketing/funnel" replace />} />
+            <Route path="/marketing/funnel" element={<FunnelPage />} />
+            <Route path="/marketing/audience" element={<AudiencePage />} />
+            <Route path="/marketing/email" element={<EmailCampaignPage />} />
             <Route path="/announcements" element={<AnnouncementsPage />} />
             <Route path="/pricing" element={<PricingPage />} />
             <Route path="/whats-new" element={<ReleaseNotesPage />} />
