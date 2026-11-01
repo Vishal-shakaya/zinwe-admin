@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent, type ReactElement } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import { getDocsIndex, getDocsPage } from "../lib/api";
 import "../docs.css";
 
 /**
- * Documentation tab -- LOCAL DEV ONLY. The route and nav item exist only when `import.meta.env.DEV`
- * (see App.tsx / Layout.tsx), and the pages come from the Vite dev server's `zinwe-docs` plugin
- * (vite.config.ts), which reads `<project>/.claude/dev/docs/*.md`. Production builds contain neither.
+ * Documentation tab. On a local dev server the pages come live from the `zinwe-docs` plugin (vite.config.ts), which
+ * reads `<project>/.claude/dev/docs/*.md`. On dev and prod they come from /api/admin/docs/, staff only, from files
+ * deploy.ps1 uploads. The bundle, which anyone can download, holds only this viewer and no documentation.
  */
 
 interface DocHeading {
@@ -32,6 +33,14 @@ interface DocIndex {
 }
 
 const API = "/__zinwe_docs";
+
+const loadIndex = (): Promise<DocIndex> =>
+  import.meta.env.DEV ? fetch(`${API}/index.json`).then((r) => r.json() as Promise<DocIndex>) : getDocsIndex<DocIndex>();
+
+const loadPage = (slug: string): Promise<{ html: string }> =>
+  import.meta.env.DEV
+    ? fetch(`${API}/page/${slug}`).then((r) => (r.ok ? (r.json() as Promise<{ html: string }>) : Promise.reject(r.status)))
+    : getDocsPage(slug);
 
 function snippet(text: string, q: string): string {
   const i = text.toLowerCase().indexOf(q.toLowerCase());
@@ -61,8 +70,7 @@ export default function DocsPage(): ReactElement {
   }, []);
 
   useEffect(() => {
-    fetch(`${API}/index.json`)
-      .then((r) => r.json() as Promise<DocIndex>)
+    loadIndex()
       .then(setIndex)
       .catch(() => setError("The project documentation isn't available on this copy of the back office."));
   }, [version]);
@@ -78,9 +86,8 @@ export default function DocsPage(): ReactElement {
   useEffect(() => {
     if (!slug) return;
     let alive = true;
-    fetch(`${API}/page/${slug}`)
-      .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
-      .then((d: { html: string }) => {
+    loadPage(slug)
+      .then((d) => {
         if (alive) {
           setHtml(d.html);
           setError(null);

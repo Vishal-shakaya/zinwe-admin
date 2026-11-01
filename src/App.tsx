@@ -24,9 +24,8 @@ import { BlogSeriesPage } from "./pages/BlogSeriesPage";
 import { BlogGuidesPage } from "./pages/BlogGuidesPage";
 import { LogsPage } from "./pages/LogsPage";
 
-// Documentation tab: local dev only. `import.meta.env.DEV` is false in `vite build`, so production bundles drop
-// this import (and the docs are served only by the dev server, see vite.config.ts).
-const DocsPage = import.meta.env.DEV ? lazy(() => import("./pages/DocsPage")) : null;
+// Documentation tab: only the viewer is in the bundle. The pages come from the staff-only API (see pages/DocsPage.tsx).
+const DocsPage = lazy(() => import("./pages/DocsPage"));
 
 type AuthState =
   | { kind: "loading" }
@@ -93,16 +92,14 @@ export function App(): ReactElement {
             <Route path="/blog/:id" element={<BlogEditorPage />} />
             {/* Logs (FR-37): real data from /api/admin/logs/, in every build. */}
             <Route path="/logs" element={<LogsPage />} />
-            {DocsPage ? (
-              <Route
-                path="/docs/:slug?"
-                element={
-                  <Suspense fallback={<p className="k">Loading…</p>}>
-                    <DocsPage />
-                  </Suspense>
-                }
-              />
-            ) : null}
+            <Route
+              path="/docs/:slug?"
+              element={
+                <Suspense fallback={<p className="k">Loading…</p>}>
+                  <DocsPage />
+                </Suspense>
+              }
+            />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </PageErrorBoundary>

@@ -89,8 +89,8 @@ function useBadges(): Partial<Record<BadgeKey, number>> {
 }
 
 /**
- * Documentation: only when the admin runs locally (`npm run dev`) AND the docs server answers, so staff
- * never get a menu item that opens an error (J8-20). Never in dev/prod builds.
+ * Documentation: on a local dev server, when the docs server answers, so staff never get a menu item that opens an
+ * error (J8-20). In dev/prod builds `me.has_docs` says the same.
  */
 function useDocsAvailable(): boolean {
   const [ok, setOk] = useState(false);
@@ -139,7 +139,7 @@ export function Layout({
   children: ReactNode;
 }): ReactElement {
   const badges = useBadges();
-  const docs = useDocsAvailable();
+  const docs = useDocsAvailable() || Boolean(me.has_docs);
   const dev = useAdminEnv() === "dev";
   const [open, setOpen] = useState(false);
   const { pathname } = useLocation();
@@ -150,7 +150,7 @@ export function Layout({
     setOpen(false);
   }, [pathname]);
 
-  // SYSTEM: Logs in every build; Documentation only locally.
+  // SYSTEM: Logs in every build; Documentation when this copy has it.
   const groups: NavGroup[] = GROUPS.map((g) => {
     if (g.label !== "SYSTEM") return g;
     return { ...g, items: [...g.items, ...(docs ? [{ to: "/docs", label: "Documentation", icon: "docs" as const }] : [])] };

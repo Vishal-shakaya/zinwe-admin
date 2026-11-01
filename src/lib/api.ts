@@ -66,6 +66,8 @@ export interface AdminMe {
   email: string;
   full_name: string;
   is_staff: boolean;
+  /** This server has the project documentation. */
+  has_docs?: boolean;
 }
 
 export interface PlanSummary {
@@ -723,6 +725,9 @@ export const updateTestimonial = (id: number, patch: TestimonialPatch) =>
 
 export const deleteTestimonial = (id: number) =>
   request<null>(`/api/admin/testimonials/${id}/`, { method: "DELETE" });
+
+export const getDocsIndex = <T,>() => request<T>("/api/admin/docs/");
+export const getDocsPage = (slug: string) => request<{ html: string }>(`/api/admin/docs/${slug}/`);
 
 export const getReleaseNotes = () => request<ReleaseNote[]>("/api/admin/release-notes/");
 
