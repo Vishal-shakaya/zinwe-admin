@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactElement } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { ApiError, getFeedback, getMe, sendCustomerEmail, type FeedbackRow } from "../lib/api";
 import { pageName } from "../lib/pages";
 import { useLoad } from "../lib/useLoad";
@@ -91,6 +91,7 @@ function toHtml(text: string): string {
  * "Replied" line are kept in this browser until the API has them (content/fixtures/feedback.ts).
  */
 export function FeedbackPage(): ReactElement {
+  const navigate = useNavigate();
   const toast = useToast();
   const load = useCallback(() => getFeedback(), []);
   const { data, error, reload } = useLoad(load);
@@ -538,6 +539,15 @@ export function FeedbackPage(): ReactElement {
                               </svg>
                               Reply by email
                             </button>
+                            {r.testimonial_id ? (
+                              <Link className="lnk" to="/testimonials">
+                                In testimonials
+                              </Link>
+                            ) : r.rating >= 8 && r.message.trim() ? (
+                              <button type="button" className="lnk" onClick={() => navigate("/testimonials", { state: { fromFeedback: r } })}>
+                                Use as testimonial
+                              </button>
+                            ) : null}
                             <div className="fb-follow__row">
                               <button
                                 type="button"

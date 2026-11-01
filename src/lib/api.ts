@@ -219,6 +219,8 @@ export interface FeedbackRow {
   source?: "owner" | "member";
   /** Who sent member feedback; null for the owner's own. */
   member?: { name: string; hostname: string } | null;
+  /** Set once this feedback has been used as a testimonial. */
+  testimonial_id?: number | null;
 }
 
 export interface FeedbackSummary {
@@ -690,6 +692,37 @@ export interface ReleaseNoteInput {
   summary: string;
   body: string;
 }
+
+export interface TestimonialInput {
+  kind: "owner" | "member";
+  quote: string;
+  rating: number;
+  name: string;
+  role: string;
+  company: string;
+  permission: string;
+  source_feedback: number | null;
+}
+
+export interface Testimonial extends TestimonialInput {
+  id: number;
+  is_published: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+type TestimonialPatch = Partial<TestimonialInput> & { is_published?: boolean };
+
+export const getTestimonials = () => request<Testimonial[]>("/api/admin/testimonials/");
+
+export const createTestimonial = (input: TestimonialPatch) =>
+  request<Testimonial>("/api/admin/testimonials/", { method: "POST", body: JSON.stringify(input) });
+
+export const updateTestimonial = (id: number, patch: TestimonialPatch) =>
+  request<Testimonial>(`/api/admin/testimonials/${id}/`, { method: "PATCH", body: JSON.stringify(patch) });
+
+export const deleteTestimonial = (id: number) =>
+  request<null>(`/api/admin/testimonials/${id}/`, { method: "DELETE" });
 
 export const getReleaseNotes = () => request<ReleaseNote[]>("/api/admin/release-notes/");
 
