@@ -150,13 +150,15 @@ export function Layout({
   const docs = useDocsAvailable() || Boolean(me.has_docs);
   const dev = useAdminEnv() === "dev";
   const [open, setOpen] = useState(false);
-  const { pathname } = useLocation();
+  const { pathname, hash } = useLocation();
   const menuRef = useRef<HTMLButtonElement>(null);
+  const linksRef = useRef<HTMLDivElement>(null);
 
-  // Phones: the menu closes after you pick a page.
+  // A new page opens at its top, and the menu keeps its current link in view.
   useEffect(() => {
-    setOpen(false);
-  }, [pathname]);
+    if (!hash) window.scrollTo(0, 0);
+    linksRef.current?.querySelector(".is-active")?.scrollIntoView({ block: "nearest" });
+  }, [pathname, hash]);
 
   // SYSTEM: Logs in every build; Documentation when this copy has it.
   const groups: NavGroup[] = GROUPS.map((g) => {
@@ -171,7 +173,7 @@ export function Layout({
           <div className="zan__sticky">
             <div className="zan__top">
               <div className="zan__brandrow">
-                <Link to="/" className="zan__brand">
+                <Link to="/" className="zan__brand" onClick={() => setOpen(false)}>
                   <BrandLogo height={24} extra={dev ? <DevPill /> : null} />
                 </Link>
                 <button
@@ -187,7 +189,7 @@ export function Layout({
               </div>
             </div>
 
-            <div className="zan__groups">
+            <div className="zan__groups" ref={linksRef}>
               {groups.map((g) => (
                 <div key={g.label} className="zan__group">
                   <span className="zan__glabel">{g.label}</span>
@@ -199,6 +201,7 @@ export function Layout({
                         key={item.to}
                         to={item.to}
                         end={item.end}
+                        onClick={() => setOpen(false)}
                         className={({ isActive }) => "zan-link" + (isActive ? " is-active" : "")}
                       >
                         <Icon name={item.icon} size={18} />

@@ -745,17 +745,22 @@ select.inp {
 .zshell {
   min-height: 100vh;
   display: flex;
-  flex-wrap: wrap;
   align-items: stretch;
 }
+/* The menu stays one screen tall while the page scrolls: its links scroll inside it, the profile stays at the bottom. */
 .zshell__nav {
   flex: 0 0 248px;
   width: 248px;
   min-width: 0;
   max-width: 100%;
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
+  height: 100vh;
+  height: 100dvh;
 }
 .zmain {
-  flex: 999 1 560px;
+  flex: 1 1 0;
   min-width: 0;
   padding: 26px 32px 56px;
   display: flex;
@@ -824,8 +829,8 @@ select.inp {
   font-family: var(--font);
   color: var(--ink);
   background: var(--nav);
-  min-height: 100%;
   height: 100%;
+  min-height: 0;
   padding: 18px 12px 16px;
   display: flex;
   flex-direction: column;
@@ -838,13 +843,11 @@ select.inp {
   outline-offset: 2px;
 }
 .zan__sticky {
-  position: sticky;
-  top: 0;
   display: flex;
   flex-direction: column;
   gap: 18px;
-  min-height: 100vh;
-  padding-bottom: 0;
+  height: 100%;
+  min-height: 0;
 }
 .zan__top {
   display: flex;
@@ -890,6 +893,14 @@ select.inp {
   border-color: var(--mute-2);
 }
 .zan__groups {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  /* Room for the focus ring, which the scroll area would otherwise clip. */
+  margin: -4px -6px;
+  padding: 4px 6px;
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -969,7 +980,7 @@ select.inp {
   box-shadow: 0 0 0 3px var(--danger-tint);
 }
 .zan__foot {
-  margin-top: auto;
+  flex: none;
   border-top: 1px solid var(--nav-line);
   padding: 14px 4px 0;
   display: flex;
@@ -1374,11 +1385,13 @@ select.inp {
 @media (max-width: 760px) {
   .zshell {
     flex-direction: column;
-    flex-wrap: nowrap;
   }
   .zshell__nav {
     flex: none;
     width: 100%;
+    position: static;
+    align-self: stretch;
+    height: auto;
   }
   .zmain {
     flex: 1 1 auto;
@@ -1394,9 +1407,13 @@ select.inp {
     gap: 12px;
   }
   .zan__sticky {
-    position: static;
-    min-height: 0;
+    height: auto;
     gap: 12px;
+  }
+  .zan__groups {
+    overflow-y: visible;
+    margin: 0;
+    padding: 0;
   }
   .zan__menu-btn {
     display: inline-flex;
